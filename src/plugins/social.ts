@@ -37,7 +37,6 @@ async function readOpenGraph(pageUrl: string): Promise<{ video?: string; image?:
   const meta = (name: string) =>
     html.match(new RegExp(`<meta[^>]+property="${name}"[^>]+content="([^"]+)"`, "i"))?.[1]?.replaceAll("&amp;", "&");
 
-  // Facebook also embeds a direct "playable_url" in its page data.
   const playable = html.match(/"playable_url(?:_quality_hd)?"\s*:\s*"([^"]+)"/)?.[1]?.replace(/\\\//g, "/");
   return { video: meta("og:video") ?? meta("og:video:url") ?? playable, image: meta("og:image"), title: meta("og:title") };
 }

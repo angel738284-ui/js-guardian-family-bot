@@ -90,7 +90,6 @@ export async function runSetup(answer: string, chat: string): Promise<string> {
   }
 
   if (step === "sticker") {
-    // Keep the original letter case for pack names.
     const [pack, author] = raw.split("|").map((part) => part.trim());
     if (pack) await kv.set("sticker_packname", pack);
     if (author) await kv.set("sticker_author", author);

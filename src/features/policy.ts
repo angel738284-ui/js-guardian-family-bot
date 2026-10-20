@@ -26,7 +26,6 @@ let cache: Policies | null = null;
 export async function getPolicies(): Promise<Policies> {
   if (!cache) {
     const stored = (await kv.get<Record<string, unknown>>("policies")) ?? {};
-    // Keep only known policies (older versions stored a few that no longer exist).
     const known = Object.fromEntries(Object.entries(stored).filter(([key]) => key in DEFAULT_POLICIES));
     cache = { ...DEFAULT_POLICIES, ...(known as Partial<Policies>) };
   }
@@ -71,7 +70,6 @@ function inQuietHours(policies: Policies): boolean {
   const start = minutesOfDay(policies.quietHoursStart);
   const end = minutesOfDay(policies.quietHoursEnd);
   if (start === end) return false;
-  // "22:00 → 07:00" wraps past midnight.
   return start < end ? current >= start && current < end : current >= start || current < end;
 }
 

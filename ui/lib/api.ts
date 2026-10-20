@@ -9,7 +9,6 @@ export class ApiError extends Error {
   }
 }
 
-/** Calls the Asena API with the login cookie. */
 export async function api<T = unknown>(pathname: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${site.apiUrl}${pathname}`, {
     ...init,

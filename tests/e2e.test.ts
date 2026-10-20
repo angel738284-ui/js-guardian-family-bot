@@ -6,8 +6,6 @@ import { FakeWaServer, type FakePeer } from "@zapo-js/fake-server";
 import https from "node:https";
 import sharp from "sharp";
 
-// The fake server uses a self-signed HTTPS certificate for media. Bun's node:https
-// ignores the per-agent "rejectUnauthorized" option, so allow it for this test process only.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const OWNER = "5511999999999";
@@ -55,8 +53,6 @@ async function expectSilence(peer: FakePeer, ms = 2_500): Promise<void> {
   expect(result).toBeNull();
 }
 
-// Test-only shim: the fake server decodes the WebSocket close reason with TextDecoder,
-// but Bun's "ws" compatibility layer passes a plain string (or nothing). Accept those too.
 const originalDecode = TextDecoder.prototype.decode;
 TextDecoder.prototype.decode = function (this: TextDecoder, input?: unknown, options?: { stream?: boolean }) {
   const isBytes = input instanceof ArrayBuffer || ArrayBuffer.isView(input);
@@ -80,8 +76,6 @@ beforeAll(async () => {
   redirectCdnToFakeServer();
   dataDir = await mkdtemp(path.join(os.tmpdir(), "asena-e2e-"));
 
-  // Settings are read when the config module loads, so set them before importing the bot.
-  // Set everything the test relies on: Bun also loads your own .env into tests.
   process.env.DATA_DIR = dataDir;
   process.env.PREFIX = "#";
   process.env.BOT_MODE = "public";
@@ -106,11 +100,9 @@ beforeAll(async () => {
     proxy: { mediaUpload: server.mediaProxyAgent, mediaDownload: server.mediaProxyAgent },
   });
 
-  // Pair like scanning a QR code: the fake server plays the phone.
   const qr = new Promise<string>((resolve) => requireClient().once("auth_qr", ({ qr }) => resolve(qr)));
   const firstPipeline = await server.waitForAuthenticatedPipeline();
   await server.runPairing(firstPipeline, { deviceJid: BOT_DEVICE, deviceLid: BOT_LID }, async () => {
-    // QR payload: "ref,noiseKey,identityKey,advSecret" (base64 parts)
     const parts = (await qr).split(",");
     return {
       identityPublicKey: Buffer.from(parts[2]!, "base64"),
@@ -155,7 +147,7 @@ describe("private chat commands", () => {
     expect(menu).toContain("  • ping");
     expect(menu).not.toContain("#ping");
     expect(menu).toContain("*Owner*");
-    expect(menu).not.toContain("cmdlist"); // hidden command
+    expect(menu).not.toContain("cmdlist");
 
     await stranger.sendConversation("#menu");
     const strangerMenu = await nextText(stranger);
@@ -177,7 +169,6 @@ describe("private chat commands", () => {
     await owner.sendConversation("#note get shop");
     expect(await nextText(owner)).toContain("milk and eggs");
 
-    // Another user has their own notebook.
     await stranger.sendConversation("#note get shop");
     expect(await nextText(stranger)).toContain("not found");
   });
@@ -294,7 +285,6 @@ describe("media commands", () => {
   async function publish(bytes: Uint8Array, mediaType: "image" | "video" | "sticker") {
     const blob = await server.publishMediaBlob({ plaintext: bytes, mediaType });
     return {
-      // Real messages carry a full CDN URL; here it points at the fake server.
       url: server.mediaUrl(blob.path),
       directPath: blob.path,
       mediaKey: blob.mediaKey,
@@ -353,7 +343,6 @@ describe("group commands", () => {
 
   async function nextGroupText(peer: FakePeer): Promise<string> {
     for (let attempt = 0; attempt < 3; attempt++) {
-      // The bot's own stanza has no "participant", so tell the peer who the sender is.
       const received = await peer.expectGroupMessage(GROUP, { timeoutMs: 10_000, senderJid: BOT_DEVICE });
       const text = textOf(received.message);
       if (text) return text;

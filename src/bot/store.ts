@@ -41,7 +41,6 @@ async function buildStore(): Promise<WaStore> {
     case "postgres": {
       const { createPostgresStore } = await import("@zapo-js/store-postgres");
       const pg = createPostgresStore({ pool: { connectionString: authDbUrl }, tablePrefix: "zapo_" });
-      // Postgres needs a background job to delete expired cache rows.
       pg.startCleanup(SESSION_ID);
       return createStore({ backends: { pg }, providers: providers("pg") });
     }

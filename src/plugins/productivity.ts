@@ -65,7 +65,6 @@ command({
   usage: "[call] <10m|2h|1d> <text>",
   run: async (ctx) => {
     const words = ctx.args.split(/\s+/).filter(Boolean);
-    // "call" may come first or right after the time: #remind call 10m ... or #remind 10m call ...
     const callIndex = words.findIndex((word, index) => index < 2 && word.toLowerCase() === "call");
     const withCall = callIndex >= 0;
     if (withCall) words.splice(callIndex, 1);
@@ -86,7 +85,6 @@ command({
         await ctx.replyFail("Calls are not available on this bot.");
         return;
       }
-      // Full JID: the phone JID when WhatsApp sent one, otherwise the sender's own @lid.
       call = ctx.sender;
       const pending = (await listAllReminders()).filter((reminder) => reminder.call && reminder.createdBy === (ctx.senderIds[0] ?? ""));
       if (pending.length >= 5) {

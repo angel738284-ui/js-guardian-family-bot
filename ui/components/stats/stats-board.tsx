@@ -149,7 +149,6 @@ function DailyChart({ daily }: { daily: { date: string; pairs: number }[] }) {
   const barWidth = Math.min(24, band * 0.6);
   const y = (value: number) => top + plotHeight - (value / max) * plotHeight;
 
-  // Column with 4px rounded top and square base.
   const barPath = (x: number, value: number) => {
     const h = Math.max(0, (value / max) * plotHeight);
     if (h === 0) return "";

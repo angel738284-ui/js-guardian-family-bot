@@ -25,7 +25,7 @@ import { stopCallHost, voipPlugins, wireCalls } from "./voip.ts";
 import { attachCallEvents } from "../features/calls.ts";
 
 const FATAL_REASONS = new Set([
-  "stream_error_replaced", // the same login connected somewhere else
+  "stream_error_replaced",
   "failure_banned",
   "failure_locked",
   "failure_bad_user_agent",
@@ -39,7 +39,6 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let closingOnPurpose = false;
 let extraOptions: Partial<WaClientOptions> = {};
 
-// Only for automated tests: points zapo at a fake WhatsApp server.
 function testHooksFromEnv(): Partial<WaClientOptions> {
   const raw = process.env.ASENA_TEST_HOOKS;
   if (!raw) return {};
@@ -65,7 +64,6 @@ async function createClient(): Promise<WaClient> {
     {
       store,
       sessionId: SESSION_ID,
-      // When WhatsApp rejects the built-in web version, fetch the current one and retry.
       recoverFromClientTooOld: true,
       history: { enabled: false },
       plugins,
@@ -170,7 +168,6 @@ async function handleDisconnect(event: Extract<WaConnectionEvent, { status: "clo
   if (closingOnPurpose || event.reason === "client_disconnected") return;
 
   if (event.isLogout && config.sessionId) {
-    // No QR code can be scanned on a server, so stop and point to the dashboard instead.
     await reportSessionEvent("logged_out");
     logger.error("WhatsApp logged this session out (unlinked from the phone).");
     console.log("   Open https://app.asena.fun, choose Refresh session, and put the new SESSION_ID in your settings.");
@@ -183,7 +180,6 @@ async function handleDisconnect(event: Extract<WaConnectionEvent, { status: "clo
     console.log("This device was logged out from the phone. Clearing the old login...");
     await clearSavedLogin();
     console.log("   Starting a new login. Scan the next QR code.\n");
-    // A fresh client, so nothing from the old login stays in memory.
     client = await createClient();
     reconnectAttempt = 0;
     await connect();
@@ -210,7 +206,6 @@ async function handleDisconnect(event: Extract<WaConnectionEvent, { status: "clo
 async function afterConnected(wa: WaClient): Promise<void> {
   startReminders();
 
-  // Groups often show members by LID instead of phone number, so look up the owners' LIDs.
   const owners = ownerNumbers();
   if (owners.length) {
     try {

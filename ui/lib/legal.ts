@@ -4,7 +4,6 @@ import { marked } from "marked";
 import { cacheLife } from "next/cache";
 import { site } from "./site";
 
-/** Privacy and terms pages, written in content/legal/*.md. */
 export async function getLegalPage(name: "privacy" | "terms"): Promise<string> {
   "use cache";
   cacheLife("max");

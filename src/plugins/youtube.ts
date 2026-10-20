@@ -12,7 +12,6 @@ const STREAM_CLIENTS = ["IOS", "ANDROID", "TV", "MWEB"] as const;
 const STREAM_HEADERS = { accept: "*/*", origin: "https://www.youtube.com", referer: "https://www.youtube.com" };
 const CHUNK_BYTES = 10 * 1024 * 1024;
 
-// The youtubei.js types are very large; we only describe the fields we use.
 interface Format {
   itag: number;
   url?: string;
@@ -38,7 +37,6 @@ let youtube: Innertube | null = null;
 async function getYoutube(): Promise<Innertube> {
   if (!youtube) {
     const { Innertube } = await import("youtubei.js");
-    // retrieve_player: false — we only use clients that send plain URLs, no deciphering needed.
     youtube = (await Innertube.create({ retrieve_player: false })) as unknown as Innertube;
   }
   return youtube;
@@ -186,7 +184,6 @@ async function downloadMp4(video: VideoMeta): Promise<string> {
       const output = tempPath(".mp4");
       try {
         if (audioPath) {
-          // +faststart lets WhatsApp start playing before the whole file is downloaded.
           await runFfmpeg(["-i", videoPath, "-i", audioPath, "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", output]);
           return output;
         }

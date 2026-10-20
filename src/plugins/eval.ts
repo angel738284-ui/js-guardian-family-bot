@@ -17,7 +17,6 @@ function evalScope(ctx: Ctx) {
   return {
     ctx,
     client: ctx.client,
-    // Voice calls (src/features/calls.ts); voip is the raw client.voip
     calls,
     voip: (ctx.client as unknown as { voip?: unknown }).voip,
     chat: ctx.chat,
@@ -41,7 +40,6 @@ function compile(code: string, names: string[]): (scope: object) => Promise<unkn
   try {
     return build(`return (${code}\n);`);
   } catch {
-    // Several statements: the code must use "return" itself.
     return build(code);
   }
 }
@@ -59,7 +57,6 @@ command({
   permission: "owner",
   hidden: true,
   run: async (ctx) => {
-    // Second, stricter check: an OWNER_NUMBER, not only "typed on the bot's phone".
     if (!config.enableEval || !isOwnerNumber(ctx)) {
       await ctx.replyFail(
         config.enableEval ? "Only an OWNER_NUMBER can use eval." : "Eval is off. Set ENABLE_EVAL=true in .env and restart.",

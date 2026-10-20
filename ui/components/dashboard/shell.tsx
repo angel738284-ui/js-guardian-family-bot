@@ -21,7 +21,6 @@ export interface User {
 const UserContext = createContext<User | null>(null);
 export const useUser = () => useContext(UserContext);
 
-/** Loads the signed-in user; sends everyone else to the sign-in page. */
 export function DashboardShell({ children }: { children: ReactNode }) {
   const base = useBase("dashboard");
   const pathname = usePathname();
@@ -83,7 +82,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               <details className="relative">
                 <summary className="flex cursor-pointer list-none items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3 text-sm text-fg [&::-webkit-details-marker]:hidden">
                   {user.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full" />
                   ) : (
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-xs">{user.name.slice(0, 1).toUpperCase()}</span>

@@ -9,7 +9,6 @@ export interface Reminder {
   text: string;
   at: number;
   createdBy: string;
-  /** Also ring this number or JID until it answers or declines (up to 3 times). */
   call?: string;
 }
 
@@ -78,11 +77,9 @@ const OUTCOME_TEXT = {
   missed: "Reminder call not answered after 3 tries.",
 };
 
-// Runs in the background so a ringing phone does not hold up other reminders.
 async function ringForReminder(reminder: Reminder): Promise<void> {
   if (!calls.enabled()) return;
   if (!reminder.call!.includes("@")) {
-    // Set before the fix that stored full JIDs: bare digits may be a LID, which cannot be called as a number.
     await sendText(reminder.chat, "_Could not place the reminder call: set the reminder again._").catch(() => {});
     return;
   }

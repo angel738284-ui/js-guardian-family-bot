@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// app.asena.fun serves /dashboard and admin.asena.fun serves /admin, without the prefix in the URL.
 const sections = [
   { subdomain: "app.", prefix: "/dashboard", home: "/bots" },
   { subdomain: "admin.", prefix: "/admin", home: "/overview" },
@@ -12,7 +11,6 @@ export function proxy(request: NextRequest) {
   if (!section) return NextResponse.next();
 
   const { pathname, search } = request.nextUrl;
-  // The site's own "/" is prerendered and wins over a rewrite, so the subdomain root redirects to a real page.
   if (pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = section.home;
@@ -30,6 +28,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next.js internals and files with an extension (images, icons).
   matcher: ["/((?!_next/|.*\\..*).*)"],
 };

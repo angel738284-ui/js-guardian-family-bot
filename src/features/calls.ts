@@ -1,29 +1,3 @@
-/**
- * Voice calls for commands. Needs the optional call packages (see src/bot/voip.ts).
- *
- *   import { calls } from "../features/calls.ts";
- *
- *   // Ring someone, play a file when they answer, hang up when it ends:
- *   const result = await calls.ring("2348012345678", "/tmp/hello.mp3");
- *   // result: { answered: true, reason: "user_ended", seconds: 12 }
- *
- *   // Or step by step:
- *   const call = await calls.start(ctx.sender);
- *   if (await call.answered()) {
- *     await call.play("/tmp/hello.mp3"); // waits until the file has played
- *     await call.hangUp();
- *   }
- *
- *   // Ring up to 3 times until they pick up or decline, hang up as soon as they answer:
- *   const outcome = await calls.alert("2348012345678"); // "answered" | "declined" | "missed"
- *
- *   // Answer incoming calls:
- *   calls.onIncoming(async (call) => {
- *     await call.accept();
- *     await call.play("/tmp/welcome.mp3");
- *     await call.hangUp();
- *   });
- */
 import { requireClient } from "../bot/client.ts";
 import { callsEnabled, playIntoCall, stopCallAudio } from "../bot/voip.ts";
 import { phoneToJid } from "../lib/jid.ts";
@@ -31,7 +5,6 @@ import { errorMessage, logger } from "../lib/logger.ts";
 
 export type CallState = "initiating" | "ringing" | "incoming_ringing" | "connecting" | "active" | "on_hold" | "ended";
 
-/** Why a call ended: "user_ended", "declined", "timeout", "busy", "cancelled", "failed", ... */
 export type CallEndReason = string;
 
 interface CallInfo {
@@ -73,7 +46,6 @@ export class Call {
     return this.info.callId;
   }
 
-  /** The other side's JID. For incoming calls from a LID, `phone` may hold the number. */
   get peer(): string {
     return this.info.peerJid;
   }
@@ -82,7 +54,6 @@ export class Call {
     return this.info.callerPn?.split("@")[0] ?? (this.info.peerJid.endsWith("@s.whatsapp.net") ? this.info.peerJid.split("@")[0] : undefined);
   }
 
-  /** The group's JID on a group call. */
   get group(): string | undefined {
     return this.info.groupJid;
   }
@@ -107,12 +78,10 @@ export class Call {
     return this.info.stateData.endReason;
   }
 
-  /** Seconds the call was connected, once it has ended. */
   get duration(): number | undefined {
     return this.info.stateData.durationSecs;
   }
 
-  /** Resolves true once the call is connected, false if it ends or `timeoutMs` passes first. */
   answered(timeoutMs = RING_TIMEOUT_MS): Promise<boolean> {
     if (this.isActive) return Promise.resolve(true);
     if (this.isEnded) return Promise.resolve(false);
@@ -125,13 +94,11 @@ export class Call {
     });
   }
 
-  /** Resolves with the end reason when the call is over. */
   ended(): Promise<CallEndReason> {
     if (this.isEnded) return Promise.resolve(this.endReason ?? "unknown");
     return new Promise((resolve) => this.endedWaiters.push(resolve));
   }
 
-  /** Plays an audio file (mp3, ogg, wav, ...) to the other side and waits until it has played. Waits for the answer first. */
   async play(file: string): Promise<void> {
     if (!(await this.answered())) throw new Error("The call was not answered.");
     await new Promise<void>((resolve, reject) => {
@@ -147,7 +114,6 @@ export class Call {
     });
   }
 
-  /** Stops whatever `play` is sending. */
   stopAudio(): void {
     stopCallAudio(this.id);
   }
@@ -160,7 +126,6 @@ export class Call {
     await voip().rejectCall(this.id);
   }
 
-  /** On a group call this only takes the bot off; the call goes on for the others. */
   async hangUp(): Promise<void> {
     if (!this.isEnded) await voip().endCall(this.id);
   }
@@ -169,7 +134,6 @@ export class Call {
     await voip().setMute(this.id, muted);
   }
 
-  /** @internal Called by the event wiring below. */
   update(info: CallInfo): void {
     this.info = info;
     if (this.isActive) this.answeredWaiters.splice(0).forEach((resolve) => resolve(true));
@@ -183,7 +147,6 @@ export class Call {
 
 export type AlertOutcome = "answered" | "declined" | "missed";
 
-// One call at a time, so alerts queue up behind each other.
 let queue: Promise<unknown> = Promise.resolve();
 
 function serialized<T>(task: () => Promise<T>): Promise<T> {
@@ -210,10 +173,8 @@ function toJid(to: string): string {
 }
 
 export const calls = {
-  /** Whether the call packages are installed and loaded. */
   enabled: callsEnabled,
 
-  /** Rings a phone number or JID. Returns at once; use `call.answered()` to wait. */
   async start(to: string): Promise<Call> {
     const api = voip();
     const callId = await api.startCall({ peerJid: toJid(to) });
@@ -222,10 +183,6 @@ export const calls = {
     return track(info);
   },
 
-  /**
-   * Starts a call in a group and rings `members` (JIDs, without the bot). The bot stays on, silent,
-   * until everyone else has left; WhatsApp then ends the call.
-   */
   async startGroup(groupJid: string, members: string[]): Promise<Call> {
     const api = voip();
     if (members.length === 0) throw new Error("Nobody to call in this group.");
@@ -235,12 +192,10 @@ export const calls = {
     return track({ ...info, groupJid: info.groupJid ?? groupJid });
   },
 
-  /** The running call of a group, if the bot is on one. */
   inGroup(groupJid: string): Call | undefined {
     return [...tracked.values()].find((call) => call.group === groupJid && !call.isEnded);
   },
 
-  /** Rings, plays a file once answered, then hangs up. Never throws for "no answer". */
   async ring(to: string, file: string, options: { timeoutMs?: number } = {}): Promise<{ answered: boolean; reason: CallEndReason; seconds?: number }> {
     const call = await calls.start(to);
     const answered = await call.answered(options.timeoutMs);
@@ -250,10 +205,6 @@ export const calls = {
     return { answered, reason, seconds: call.duration };
   },
 
-  /**
-   * Rings until the other side answers or declines, up to `attempts` times, and hangs up as soon
-   * as they answer. Calls run one at a time; a second alert waits for the first.
-   */
   alert(to: string, options: { attempts?: number; ringMs?: number; pauseMs?: number } = {}): Promise<AlertOutcome> {
     const { attempts = 3, ringMs = 40_000, pauseMs = 8_000 } = options;
     return serialized(async () => {
@@ -264,7 +215,6 @@ export const calls = {
           await call.hangUp().catch(() => {});
           return "answered";
         }
-        // Nobody picked up in time: stop this ring before the next one.
         await call.hangUp().catch(() => {});
         const reason = await Promise.race([call.ended(), Bun.sleep(5_000).then(() => "unknown")]);
         if (reason === "declined" || reason === "busy" || reason === "rejected_elsewhere") return "declined";
@@ -274,13 +224,11 @@ export const calls = {
     });
   },
 
-  /** Runs `handler` for every incoming call. Returns a function that removes it. */
   onIncoming(handler: (call: Call) => void | Promise<void>): () => void {
     incomingHandlers.add(handler);
     return () => incomingHandlers.delete(handler);
   },
 
-  /** Calls that are ringing or connected right now. */
   list(): Call[] {
     return [...tracked.values()];
   },
@@ -290,7 +238,6 @@ export const calls = {
   },
 };
 
-/** Connects call events of a new client to the helpers above. Called from src/bot/connection.ts. */
 export function attachCallEvents(wa: unknown): void {
   if (!callsEnabled()) return;
   const client = wa as { on(event: string, listener: (info: CallInfo) => void): void };

@@ -1,5 +1,3 @@
-// Full stack: fake WhatsApp → Go server → Bun worker → SESSION_ID → bot process.
-// Needs the private server source (../asena-server or ASENA_SERVER_DIR), Go, Postgres and Redis; skipped without the source.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -21,7 +19,6 @@ const REDIS_URL = process.env.TEST_REDIS_URL ?? "redis://localhost:6379/15";
 const APP_ORIGIN = "http://localhost:3999";
 const BOT_PORT = PORT + 1000;
 
-// fake-server decodes the WebSocket close reason with TextDecoder; Bun's ws layer passes a string or nothing.
 const originalDecode = TextDecoder.prototype.decode;
 TextDecoder.prototype.decode = function (this: TextDecoder, input?: unknown, options?: { stream?: boolean }) {
   const isBytes = input instanceof ArrayBuffer || ArrayBuffer.isView(input);
@@ -55,7 +52,6 @@ async function waitForOutput(proc: Subprocess, pattern: RegExp, timeoutMs = 30_0
 }
 
 function startBot(dataDir: string, extraEnv: Record<string, string> = {}): Subprocess {
-  // --env-file keeps your own .env out of the test.
   return Bun.spawn(["bun", `--env-file=${path.join(tmp, "empty.env")}`, "src/index.ts"], {
     cwd: ROOT,
     stdin: "ignore",
@@ -91,7 +87,6 @@ async function exitCodeWithin(proc: Subprocess, ms: number): Promise<number | nu
   return Promise.race([proc.exited, Bun.sleep(ms).then(() => null)]);
 }
 
-/** Connect a fresh bot process and return the owner peer talking to it. */
 async function connectBot(dataDir: string, extraEnv: Record<string, string> = {}) {
   const nextPipeline = wa.waitForNextAuthenticatedPipeline(30_000);
   const process = startBot(dataDir, extraEnv);
@@ -135,13 +130,11 @@ async function readEvents(url: string, onEvent: (event: Record<string, string>) 
   }
 }
 
-/** Play the phone for one pairing started by `start`, and return the session ID the page would show. */
 async function pairThrough(start: () => Promise<Response>): Promise<string> {
   const response = await start();
   expect(response.status).toBe(201);
   const { id } = (await response.json()) as { id: string };
 
-  // The fake server plays the phone: it starts pairing, then needs the keys from the QR the worker shows.
   let resolveQr: (qr: string) => void = () => {};
   const qr = new Promise<string>((resolve) => (resolveQr = resolve));
   const pairing = wa.waitForNextAuthenticatedPipeline(30_000).then((pipeline) =>
@@ -287,7 +280,6 @@ describe.skipIf(!HAS_SERVER)("pairing server", () => {
     bot = connected.process;
     expect(await exitCodeWithin(first, 15_000)).toBe(1);
 
-    // Real WhatsApp also disconnects the old copy ("replaced"); the fake server does not, so no ping here.
     const admin = await fetch(`${API}/api/admin/sessions`, { headers: { Authorization: `Bearer ${ADMIN_TOKEN}` } });
     const body = (await admin.json()) as { sessions: Record<string, unknown>[] };
     expect(body.sessions[0]!.running).toBe(true);

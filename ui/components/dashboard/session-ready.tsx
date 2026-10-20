@@ -7,7 +7,6 @@ import { Alert, Check, Server, Terminal } from "../icons";
 import { Step } from "../pair/pair-flow";
 import { Button } from "./ui";
 
-/** Shown once after linking: the new session ID and how to run the bot with it. */
 export function SessionReady({ sessionId, phone, onDone }: { sessionId: string; phone: string; onDone: () => void }) {
   const [where, setWhere] = useState<"render" | "local">("render");
   const envLine = `SESSION_ID=${sessionId}`;

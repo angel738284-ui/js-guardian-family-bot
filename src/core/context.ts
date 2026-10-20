@@ -59,7 +59,6 @@ function resolveSender(event: WaIncomingMessageEvent): { sender: string; senderI
     alternate = me.lid ?? alternate;
   }
 
-  // Our own IDs carry a device number ("234...:5@s.whatsapp.net"). Drop it: it is not part of the user ID.
   primary = primary?.replace(/:\d+@/, "@");
   alternate = alternate?.replace(/:\d+@/, "@");
 

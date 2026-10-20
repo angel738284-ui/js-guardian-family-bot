@@ -36,7 +36,6 @@ export async function runGroupGuards(ctx: Ctx): Promise<boolean> {
   const group = await getGroup(ctx.chat).catch(() => null);
   const botCanDelete = group ? isBotAdmin(group) : false;
 
-  // Mute applies to admins too.
   if (settings.muted.some((id) => ctx.senderIds.includes(id))) {
     if (botCanDelete) await deleteMessage(ctx);
     return true;

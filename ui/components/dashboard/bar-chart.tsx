@@ -17,7 +17,6 @@ function niceMax(value: number): number {
   return Math.ceil(value / step) * step;
 }
 
-/** One series of columns with a hover tooltip and an optional table view. */
 export function BarChart({ bars, label, unit, labelEvery }: { bars: Bar[]; label: string; unit: string; labelEvery: number }) {
   const [hover, setHover] = useState<number | null>(null);
   const width = 760;

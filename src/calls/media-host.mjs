@@ -1,5 +1,3 @@
-// Runs under Node, not Bun: carries the audio of WhatsApp calls (@roamhq/wrtc needs libuv functions Bun lacks).
-// Talks to the bot with JSON lines on stdin/stdout.
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { decodeCallMediaMessage, encodeCallMediaEvent, WaCallMediaReceiver } from "@zapo-js/voip-media";
@@ -17,7 +15,6 @@ function log(level, text) {
   out({ type: "log", level, text });
 }
 
-// WhatsApp offers IPv6 relays too; on a network without IPv6 those fail at once while IPv4 carries the call.
 function isUnreachableIpv6(text, detail) {
   const all = `${text} ${detail ? JSON.stringify(detail) : ""}`;
   return /EHOSTUNREACH|ENETUNREACH|raw_udp_connect_failed/.test(all) && /\[?[0-9a-f]{1,4}(:[0-9a-f]{0,4}){2,}/i.test(all);
@@ -38,7 +35,6 @@ function callFor(callId) {
   if (call) return call;
   const receiver = new WaCallMediaReceiver({
     ...nodeMediaHost,
-    // Group calls move between relays over plain UDP.
     createRawUdpLeg: (options) => new WaRawUdpLeg(options),
     logger,
     callId,
@@ -50,7 +46,6 @@ function callFor(callId) {
   return call;
 }
 
-// Decodes any audio file to 16 kHz mono float samples with FFmpeg.
 function decode(path) {
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", path, "-f", "f32le", "-ac", "1", "-ar", String(RATE), "pipe:1"]);
@@ -95,7 +90,6 @@ function take(call, count) {
   return { chunk, filled };
 }
 
-// The audio clock: capture is pushed and playout pulled on real time, silence when nothing is queued.
 const playout = new Float32Array(RATE / 10);
 setInterval(() => {
   const now = performance.now();
@@ -106,7 +100,6 @@ setInterval(() => {
     call.sent += due;
     try {
       call.receiver.plane.pushCapture(chunk);
-      // The peer's audio has to be drained on the same clock; nothing plays it yet.
       for (let left = due; left > 0; left -= playout.length) call.receiver.plane.pullPlayout(playout.subarray(0, Math.min(left, playout.length)));
     } catch (error) {
       log("warn", `audio tick failed: ${error}`);

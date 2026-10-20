@@ -91,7 +91,6 @@ export function BotView({ mode }: { mode: Mode }) {
     return () => clearInterval(timer);
   }, [loadMetrics]);
 
-  // Live updates: heartbeats every 30 seconds and connection events as they happen.
   useEffect(() => {
     const source = new EventSource(`${site.apiUrl}${apiBase}/live`, { withCredentials: true });
     source.onmessage = (message) => {
@@ -409,7 +408,6 @@ function RenameForm({ name, onDone }: { name: string; onDone: (name: string) => 
   );
 }
 
-/** Messages per heartbeat since the page opened. */
 function LiveStrip({ beats }: { beats: Beat[] }) {
   const values = beats.map((beat) => beat.counts.messagesIn + beat.counts.messagesOut);
   const max = Math.max(...values, 1);

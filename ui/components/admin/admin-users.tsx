@@ -69,7 +69,6 @@ export function AdminUsers() {
                   <td className="px-4 py-3">
                     <Link href={`${base}/bots?user=${user.id}`} className="flex items-center gap-3">
                       {user.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={user.avatarUrl} alt="" className="h-7 w-7 rounded-full" />
                       ) : (
                         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-xs text-fg">{user.name.slice(0, 1).toUpperCase()}</span>

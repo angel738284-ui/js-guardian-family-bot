@@ -52,7 +52,7 @@ interface StoryOptions {
 }
 
 function parseOptions(args: string): StoryOptions {
-  const words = args.split(/(\s+)/); // keep the spaces so the text stays as typed
+  const words = args.split(/(\s+)/);
   const options: StoryOptions = { text: "", color: null, font: null, to: null };
 
   let index = 0;
@@ -67,7 +67,7 @@ function parseOptions(args: string): StoryOptions {
     const value = words[index + 2] ?? "";
     if (word === "--color") {
       options.color = value.toLowerCase();
-      toArgb(options.color); // throws a clear error for unknown colors
+      toArgb(options.color);
     }
     else if (word === "--font") options.font = FONTS[value.toLowerCase()] ?? null;
     else if (word === "--to") options.to = value.split(",").map((n) => n.replace(/\D/g, "")).filter(Boolean);

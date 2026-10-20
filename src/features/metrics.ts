@@ -19,7 +19,6 @@ export function increment(name: string, amount = 1): void {
   counters[name] = (counters[name] ?? 0) + amount;
 }
 
-/** Counters for the dashboard, as totals since start. The heartbeat sends the difference since its last report. */
 export function dashboardCounters(): { messagesIn: number; messagesOut: number; commands: number; errors: number; byCommand: Record<string, number> } {
   const byCommand: Record<string, number> = {};
   for (const [name, value] of Object.entries(counters)) {

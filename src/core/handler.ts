@@ -19,7 +19,6 @@ import { parseMessage } from "./message.ts";
 const MAX_COMMAND_AGE_SECONDS = 5 * 60;
 
 export async function handleMessage(client: WaClient, event: WaIncomingMessageEvent): Promise<void> {
-  // Our own replies come back as "fromMe" messages; ignore those to avoid loops.
   if (event.key.fromMe && wasSentByBot(event.key.id)) return;
 
   const message = parseMessage(event.message);
@@ -111,7 +110,6 @@ async function runCommand(ctx: Ctx, cmd: Command): Promise<void> {
 async function reportCrash(ctx: Ctx, error: unknown): Promise<void> {
   recordError();
   const where = `${ctx.command ? config.prefix + ctx.command : "message"} in ${ctx.chat}`;
-  // logger.error also forwards the details to the log group.
   logger.error(`Crash while handling ${where}`, error);
 
   const text = isLogGroup(ctx.chat) ? `✕ ${errorMessage(error)}` : t("FAILED");

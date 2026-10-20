@@ -32,7 +32,6 @@ command({
   run: async (ctx) => {
     const group = await ctx.group();
     const text = ctx.args || ctx.message.quoted?.text || "*Attention, everyone.*";
-    // Mentions without @tags in the text: everyone gets notified, the message stays short.
     await ctx.reply(text, { mentions: group.participants.map((member) => member.jid) });
   },
 });
@@ -135,7 +134,7 @@ command({
       groupInviteMessage: {
         groupJid: ctx.chat,
         inviteCode: code,
-        inviteExpiration: Math.floor(Date.now() / 1000) + 3 * 86_400, // card valid for 3 days
+        inviteExpiration: Math.floor(Date.now() / 1000) + 3 * 86_400,
         groupName: group.subject,
         caption: `Join *${group.subject}* on WhatsApp\nhttps://chat.whatsapp.com/${code}`,
         ...(thumbnail ? { jpegThumbnail: thumbnail } : {}),
@@ -182,7 +181,6 @@ command({
       return;
     }
 
-    // Everyone except the bot; WhatsApp group calls hold up to 32 people.
     const group = await getGroup(ctx.chat);
     const me = botIdentity();
     const mine = new Set([me.jid, me.lid].filter((id): id is string => Boolean(id)).map(normalizeId));

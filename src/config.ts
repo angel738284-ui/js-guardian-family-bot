@@ -26,7 +26,6 @@ const requestedDb = text("AUTH_DB", /^postgres(ql)?:\/\//i.test(legacyUrl) ? "po
 if (!AUTH_DBS.includes(requestedDb as AuthDb)) {
   throw new Error(`AUTH_DB must be one of: ${AUTH_DBS.join(", ")}`);
 }
-// SESSION_ID bots keep a local SQLite working copy that is synced to the Asena server.
 const authDb: AuthDb = sessionId ? "sqlite" : (requestedDb as AuthDb);
 const authDbUrl = text("AUTH_DB_URL", legacyUrl);
 if (authDb !== "sqlite" && !authDbUrl) {
@@ -52,14 +51,12 @@ export const config = {
   sessionSyncMs: number("SESSION_SYNC_SECONDS", 20) * 1000,
   sessionHeartbeatMs: number("SESSION_HEARTBEAT_SECONDS", 30) * 1000,
 
-  // Hosts like Render give web services a PORT and put them to sleep without traffic; the bot answers there so a ping keeps it awake.
   port: number("PORT", 0),
   publicUrl: text("PUBLIC_URL", text("RENDER_EXTERNAL_URL")),
 
   database: {
     authDb,
     authDbUrl,
-    // Bot settings live in Postgres when the login does; otherwise in data/bot.db.
     usePostgres: authDb === "postgres",
     postgresUrl: authDb === "postgres" ? authDbUrl : "",
     dataDir,

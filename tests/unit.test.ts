@@ -94,7 +94,7 @@ describe("format helpers", () => {
     expect(parseWhen("10m")! - now).toBeGreaterThanOrEqual(10 * 60_000 - 50);
     expect(parseWhen("2h")! - now).toBeGreaterThanOrEqual(2 * 3_600_000 - 50);
     expect(parseWhen("soon")).toBeNull();
-    expect(parseWhen("2001-01-01")).toBeNull(); // in the past
+    expect(parseWhen("2001-01-01")).toBeNull();
   });
 
   test("wrapText respects the line length", () => {
@@ -110,7 +110,7 @@ describe("TtlCache", () => {
     const cache = new TtlCache<number>(60_000, 2);
     cache.set("a", 1);
     cache.set("b", 2);
-    cache.get("a"); // "a" is now the most recently used
+    cache.get("a");
     cache.set("c", 3);
     expect(cache.get("b")).toBeUndefined();
     expect(cache.get("a")).toBe(1);

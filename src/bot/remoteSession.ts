@@ -1,5 +1,3 @@
-// SESSION_ID mode: the login and bot settings live on the Asena server, encrypted with the session ID.
-// The bot works on a local copy, uploads it every SESSION_SYNC_SECONDS and on shutdown, and holds a lease so only one copy runs.
 import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
@@ -39,7 +37,6 @@ async function errorText(response: Response): Promise<string> {
   return body.error ?? `HTTP ${response.status}`;
 }
 
-// Same derivation as the server: HKDF-SHA256(session ID) → AES-256-GCM key.
 async function cipherKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const material = await crypto.subtle.importKey("raw", encoder.encode(config.sessionId), "HKDF", false, ["deriveKey"]);
@@ -84,7 +81,6 @@ async function removeDatabase(file: string): Promise<void> {
   await Promise.all([file, `${file}-wal`, `${file}-shm`].map((f) => rm(f, { force: true })));
 }
 
-// A consistent copy of a live SQLite file, including anything still in its write-ahead log.
 async function exportDatabase(file: string): Promise<Uint8Array | null> {
   if (!existsSync(file)) return null;
   const copy = tempPath(".db");
@@ -98,7 +94,6 @@ async function exportDatabase(file: string): Promise<Uint8Array | null> {
   }
 }
 
-/** Download the session and take the lease. Call before anything opens the databases. */
 export async function prepareRemoteSession(): Promise<void> {
   const claim = (force: boolean) =>
     request("/api/session/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ force }) });
@@ -135,7 +130,6 @@ export async function prepareRemoteSession(): Promise<void> {
       if (data) await Bun.write(file.path, data);
     }
   } else {
-    // First start after pairing: the server holds only the WhatsApp login.
     await Bun.write(config.database.sessionFile, plain);
   }
   lastUploadedHash = "";
@@ -166,7 +160,6 @@ async function upload(): Promise<void> {
   lastUploadedHash = hash;
 }
 
-/** Upload now; never two uploads at once. */
 export function syncNow(): Promise<void> {
   syncing ??= upload()
     .catch((error) => logger.warn(`Session sync failed: ${errorMessage(error)}`))
@@ -176,7 +169,6 @@ export function syncNow(): Promise<void> {
   return syncing;
 }
 
-// Counters since the last successful heartbeat, so the dashboard can add them up per minute.
 function countsSinceLastBeat(now: typeof reported) {
   const byCommand: Record<string, number> = {};
   for (const [name, total] of Object.entries(now.byCommand)) {
@@ -235,7 +227,6 @@ export function startRemoteSync(handleLeaseLost: (reason: string) => void): void
 
 export type SessionEvent = "connected" | "disconnected" | "logged_out" | "replaced" | "started" | "stopped";
 
-/** Tell the dashboard what happened. Never throws. */
 export async function reportSessionEvent(kind: SessionEvent, detail = ""): Promise<void> {
   if (!config.sessionId || !leaseId) return;
   await request("/api/session/event", {
@@ -245,7 +236,6 @@ export async function reportSessionEvent(kind: SessionEvent, detail = ""): Promi
   }).catch((error) => logger.debug(`Session event failed: ${errorMessage(error)}`));
 }
 
-/** On shutdown, after the databases are closed: final upload, then free the lease for the next start. */
 export async function finishRemoteSession(): Promise<void> {
   if (!config.sessionId || !leaseId) return;
   stopTimers();

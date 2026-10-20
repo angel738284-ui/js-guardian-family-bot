@@ -3,8 +3,6 @@ import type { Subprocess } from "bun";
 import type { WaClient, WaClientPluginDefinition } from "zapo-js";
 import { errorMessage, logger } from "../lib/logger.ts";
 
-// Calls are optional: they turn on when @zapo-js/voip is installed (bun add @zapo-js/voip @roamhq/wrtc libmlow-wasm-fork).
-// Signaling runs here; the call audio runs in a Node helper (src/calls/media-host.mjs), because its WebRTC module crashes Bun.
 const VOIP_PACKAGE = "@zapo-js/voip";
 const MEDIA_PACKAGE = "@zapo-js/voip-media";
 const HOST_SCRIPT = path.join(import.meta.dir, "../calls/media-host.mjs");
@@ -107,7 +105,6 @@ function startHost(): void {
   });
 }
 
-/** Connects a new client's calls to the audio helper. Does nothing when calls are off. */
 export function wireCalls(wa: WaClient): void {
   if (!enabled) return;
   startHost();
@@ -118,7 +115,6 @@ export function wireCalls(wa: WaClient): void {
   client.on("voip_call_ended", (call: { callId: string }) => sendToHost({ type: "end", callId: call.callId }));
 }
 
-/** Plays an audio file into a call (any format FFmpeg reads). Resolves with its length in seconds. */
 export function playIntoCall(callId: string, file: string, onFinished?: () => void): Promise<number> {
   if (!enabled || !host) return Promise.reject(new Error("Calls are not enabled."));
   if (onFinished) finished.set(callId, onFinished);

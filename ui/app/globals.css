@@ -102,7 +102,6 @@ body {
   }
 }
 
-/* Rendered markdown in /docs */
 .prose-doc {
   color: var(--muted);
   font-size: 0.975rem;
@@ -221,7 +220,6 @@ body {
   margin: 2.5rem 0;
 }
 
-/* Shiki emits both themes; show the one that matches the color scheme. */
 .prose-doc .shiki,
 .prose-doc .shiki span {
   color: var(--shiki-dark);

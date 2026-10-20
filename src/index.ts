@@ -11,7 +11,6 @@ import { shutdown, startTerminalShortcuts } from "./terminal.ts";
 
 async function main(): Promise<void> {
   console.log(`\n  ${config.botName} v${config.version} · zapo · Bun ${Bun.version}\n`);
-  // Listen first, so the host's health check passes while the session downloads.
   startKeepAlive();
 
   if (config.sessionId) {

@@ -82,7 +82,6 @@ command({
     }
 
     const author = ctx.message.quoted && !ctx.args ? userPart(ctx.message.quoted.sender) || "User" : ctx.pushName || "User";
-    // SVG has no automatic line wrapping, so we split the text into lines ourselves.
     const lines = wrapText(text, 28).slice(0, 10);
     const textLines = lines
       .map((line, index) => `<tspan x="40" dy="${index === 0 ? 0 : 34}">${escapeXml(line)}</tspan>`)
@@ -159,7 +158,6 @@ command({
     if (!response.ok) throw new Error(`Text-to-speech failed (HTTP ${response.status}).`);
 
     const audio = new Uint8Array(await response.arrayBuffer());
-    // ptt = voice note; zapo converts it to the format WhatsApp expects.
     await ctx.send({ type: "audio", media: audio, mimetype: "audio/mpeg", ptt: true });
   },
 });

@@ -5,7 +5,6 @@ import { useMemo } from "react";
 
 const FINDER = 7;
 
-// Finder patterns are drawn as rounded squares, so their modules are skipped in the dot grid.
 function inFinder(row: number, col: number, size: number): boolean {
   const near = (value: number, start: number) => value >= start && value < start + FINDER;
   return (near(row, 0) && near(col, 0)) || (near(row, 0) && near(col, size - FINDER)) || (near(row, size - FINDER) && near(col, 0));

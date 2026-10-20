@@ -80,7 +80,6 @@ command({
           sent += 1;
         } catch {
         }
-        // Small pause between groups so WhatsApp does not flag the account.
         await Bun.sleep(400);
       }
       await ctx.replyOk(t("BROADCAST_DONE", { ok: sent, total: groups.length }));

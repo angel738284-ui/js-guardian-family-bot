@@ -29,7 +29,6 @@ interface PairEvent {
 }
 
 interface PairFlowProps {
-  /** API path that starts the pairing. The dashboard uses its own path and sends the login cookie. */
   startPath?: string;
   withLogin?: boolean;
   note?: ReactNode;

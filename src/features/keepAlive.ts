@@ -2,7 +2,6 @@ import { config } from "../config.ts";
 import { botStatus } from "../bot/status.ts";
 import { logger } from "../lib/logger.ts";
 
-/** When the host gives us a PORT (Render, Railway...), answer HTTP so health checks pass and cron pings keep the bot awake. */
 export function startKeepAlive(): void {
   if (!config.port) return;
   Bun.serve({

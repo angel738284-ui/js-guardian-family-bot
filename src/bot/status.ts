@@ -1,4 +1,3 @@
-// Shared connection state, read by the heartbeat and the keep-alive endpoint.
 export const botStatus = {
   connected: false,
   startedAt: Date.now(),
