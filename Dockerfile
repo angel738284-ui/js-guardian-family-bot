@@ -1,0 +1,18 @@
+# Asena bot image. Made for hosts like Render: set SESSION_ID and the bot keeps its
+# login and settings on the Asena server, so the container needs no disk.
+FROM oven/bun:1.4-alpine
+RUN apk add --no-cache ffmpeg
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+
+COPY tsconfig.json ./
+COPY src ./src
+
+ENV NODE_ENV=production \
+    DATA_DIR=/app/data \
+    AUTH_DB=sqlite
+RUN mkdir -p /app/data && chown bun:bun /app/data
+USER bun
+CMD ["bun", "src/index.ts"]

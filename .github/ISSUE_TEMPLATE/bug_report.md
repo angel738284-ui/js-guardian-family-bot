@@ -22,8 +22,8 @@ A clear description of what went wrong.
 
 ## Environment
 
-- X-Asena version / commit:
-- Node.js:
+- Asena version / commit:
+- Bun version (`bun --version`):
 - OS:
 - Auth backend: SQLite / Postgres
 - Bot mode: public / private

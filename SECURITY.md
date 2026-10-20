@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---------|-----------|
-| `4.x` (`main`, Baileys 7) | Yes |
-| `pre-v7` and older | Best-effort only |
+| `1.x` (`main`, Bun + zapo) | Yes |
+| X-Asena 4.x and older (Baileys) | No, see [X-Asena](https://github.com/Neeraj-x0/X-Asena) |
 
 ## Reporting a vulnerability
 
@@ -13,7 +13,7 @@ Please **do not** open a public GitHub issue for security problems.
 
 Report privately to:
 
-- **Email:** krishnaneeraj773@gmail.com
+- **GitHub:** [private security advisory](https://github.com/shellhaki/asena/security/advisories/new)
 - Or use GitHub **Private vulnerability reporting** on this repository if enabled
 
 Include:
@@ -28,7 +28,7 @@ and coordinate disclosure when appropriate.
 
 ## Please do not
 
-- Share session files, `database.db`, auth keys, or `.env` contents
+- Share session files (`data/session.db`, `data/bot.db`), auth keys, or `.env` contents
 - Post exploit details in public issues, Discord, or PRs before a fix
 - Use vulnerabilities against third-party WhatsApp accounts or bots
 

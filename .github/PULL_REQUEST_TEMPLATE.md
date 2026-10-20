@@ -11,7 +11,7 @@
 
 ## How tested
 
-<!-- e.g. npm start, #command in test group, private mode, etc. -->
+<!-- e.g. bun test, bun start, #command in test group, private mode, etc. -->
 
 -
 

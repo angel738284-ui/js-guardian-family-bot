@@ -1,6 +1,6 @@
-# Contributing to X-Asena
+# Contributing to Asena
 
-Thanks for your interest in improving X-Asena. This guide covers how to set up the project, make changes, and open a pull request.
+Thanks for your interest in improving Asena. This guide covers how to set up the project, make changes, and open a pull request.
 
 ## Code of conduct
 
@@ -8,22 +8,22 @@ Participation is governed by our [Code of Conduct](CODE_OF_CONDUCT.md). Be respe
 
 ## Before you start
 
-1. Search [existing issues](https://github.com/Neeraj-x0/X-Asena/issues) and PRs to avoid duplicates.
+1. Search [existing issues](https://github.com/shellhaki/asena/issues) and PRs to avoid duplicates.
 2. For larger features, open an issue first so we can agree on scope.
 3. Read the [README](README.md) for architecture, env vars, and command overview.
 4. Never commit secrets (`.env`, session DBs, API keys, admin tokens).
 
 ## Development setup
 
-**Requirements:** Node.js ≥ 20, FFmpeg on `PATH`, Git.
+**Requirements:** Bun ≥ 1.4, FFmpeg on `PATH`, Git.
 
 ```bash
-git clone https://github.com/Neeraj-x0/X-Asena.git
-cd X-Asena
-npm install
+git clone https://github.com/shellhaki/asena.git
+cd asena
+bun install
 cp .env.example .env
 # Edit .env — at least set OWNER_NUMBER
-npm run dev
+bun dev
 ```
 
 Login via QR in the terminal, or set `PAIRING_NUMBER` for pairing-code login.
@@ -32,12 +32,13 @@ Useful paths:
 
 | Path | Role |
 |------|------|
-| `src/plugins/` | Commands (side-effect `command()` registration) |
-| `src/socket/connection.js` | Baileys socket |
-| `src/messages/` | Serialize + handler + group guards |
-| `src/enterprise/` | Audit, flags, RBAC, policies, metrics, queue |
-| `src/database/` | Auth + BotKV |
-| `src/utils/` | Shared helpers |
+| `src/plugins/` | Commands (each file calls `command({...})`) |
+| `src/bot/` | zapo connection, session store, send helpers |
+| `src/core/` | Command registry, message parser, `ctx`, handler |
+| `src/features/` | Access, groups, moderation, setup, flags, policies, audit, metrics, queue |
+| `src/db/` | Bot settings storage |
+| `src/lib/` | Small shared helpers |
+| `tests/` | Unit tests and the end-to-end test |
 
 ## Branching and commits
 
@@ -58,20 +59,20 @@ Useful paths:
 
 ## Coding guidelines
 
-- **ESM only** (`import` / `export`). Match existing style in nearby files.
-- Prefer existing helpers (`reply`, `withTyping`, `writeAudit`, `systemLog`) over new one-offs.
-- **User chats:** short, friendly errors only. Stacks and diagnostics go to the **system log group** (`systemLog`).
-- **Plugins:** register with `command({ pattern, desc, type, ... }, handler)` from `src/plugins.js`.
-- **Heavy work** (YouTube downloads, big media): use `enqueueJob` from `src/enterprise/queue.js` when appropriate.
+- **TypeScript, strict mode.** Keep code easy to read: plain functions, clear names, short comments that explain *why*.
+- Prefer the `ctx` helpers (`ctx.reply`, `ctx.withTyping`, `ctx.downloadMedia`) and existing modules (`writeAudit`, `systemLog`) over new one-offs.
+- **User chats:** short, friendly errors only. Thrown errors are caught by the handler and their details go to the **system log group**.
+- **Plugins:** `command({ name, description, category, run })` from `src/core/command.ts`. Put rules (`adminOnly`, `botAdmin`, `permission`, `flag`) in the definition instead of checking them by hand.
+- **Heavy work** (YouTube downloads, big media): use `enqueueJob` from `src/features/queue.ts`.
 - Avoid new native dependencies unless necessary; document them in the README.
 - Do not re-enable full WhatsApp history sync or dump large objects to the console.
 
 ## Testing your change
 
-There is no full automated suite yet. Before opening a PR:
+Run `bun run typecheck` and `bun test`. The end-to-end test links the bot to zapo's fake WhatsApp server, so it needs no phone. Please add a test for new behaviour where you can. Then check by hand:
 
-1. Bot starts with `npm start` / `npm run dev`.
-2. Your command appears in `#menu` (unless `dontAddCommandList`).
+1. Bot starts with `bun start` / `bun dev`.
+2. Your command appears in `#menu` (unless `hidden`).
 3. Happy path works in a test chat/group.
 4. Failure paths return a clear message (no crash).
 5. Owner-only / private-mode behaviour still holds if you touched ACL.
@@ -91,8 +92,8 @@ Legacy history before Baileys v7 lives on the `pre-v7` branch. New work targets 
 
 Use a bug issue (or the bug template) and include:
 
-- X-Asena / Node / OS versions
-- Baileys version (`package.json`)
+- Asena / Bun / OS versions
+- zapo-js version (`package.json`)
 - Steps to reproduce
 - Expected vs actual behaviour
 - Whether the failure shows in the **system log group**

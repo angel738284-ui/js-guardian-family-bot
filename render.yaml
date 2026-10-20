@@ -1,0 +1,16 @@
+# One-click deploy: https://render.com/deploy?repo=https://github.com/shellhaki/asena
+# A free web service sleeps after 15 idle minutes; add a keep-alive job for it at https://app.asena.fun.
+services:
+  - type: web
+    name: asena
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: SESSION_ID
+        sync: false
+      - key: OWNER_NUMBER
+        sync: false
+      - key: BOT_MODE
+        value: private

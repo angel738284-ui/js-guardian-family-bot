@@ -1,6 +1,12 @@
 MIT License
 
-Copyright (c) 2023–2026 Neeraj, X-Asena contributors
+Copyright (c) 2026 shellhaki and Asena contributors
+
+Asena began as a rewrite of X-Asena by Neeraj (https://github.com/Neeraj-x0/X-Asena),
+also MIT licensed: Copyright (c) 2023–2026 Neeraj, X-Asena contributors.
+
+If you copy or reuse Asena, keep this notice and please credit Asena
+(https://github.com/shellhaki/asena).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
