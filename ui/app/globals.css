@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #000000;
+  --surface: #0b0b0c;
+  --surface-2: #151517;
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.16);
+  --fg: #f5f5f4;
+  --muted: #a1a1a1;
+  --subtle: #6b6b6b;
+  --accent: #f5f5f4;
+  --accent-fg: #000000;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --grid: rgb(255 255 255 / 0.07);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ticker {
+  animation: ticker 60s linear infinite;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes blink {
+  0%, 80%, 100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.typing span {
+  animation: blink 1.2s infinite;
+}
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker,
+  .rise,
+  .typing span {
+    animation: none;
+  }
+}
+
+/* Rendered markdown in /docs */
+.prose-doc {
+  color: var(--muted);
+  font-size: 0.975rem;
+  line-height: 1.75;
+}
+.prose-doc h1 {
+  color: var(--fg);
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+.prose-doc h2 {
+  color: var(--fg);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 2.75rem 0 0.9rem;
+  scroll-margin-top: 6rem;
+}
+.prose-doc h3 {
+  color: var(--fg);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 2rem 0 0.6rem;
+  scroll-margin-top: 6rem;
+}
+.prose-doc p {
+  margin: 0.9rem 0;
+}
+.prose-doc a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+.prose-doc a:hover {
+  text-decoration-color: var(--fg);
+}
+.prose-doc strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+.prose-doc ul,
+.prose-doc ol {
+  margin: 0.9rem 0;
+  padding-left: 1.4rem;
+}
+.prose-doc ul {
+  list-style: disc;
+}
+.prose-doc ol {
+  list-style: decimal;
+}
+.prose-doc li {
+  margin: 0.35rem 0;
+}
+.prose-doc li::marker {
+  color: var(--subtle);
+}
+.prose-doc :not(pre) > code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85em;
+  padding: 0.1rem 0.35rem;
+}
+.prose-doc pre {
+  background: var(--surface) !important;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  margin: 1.2rem 0;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+}
+.prose-doc pre code {
+  font-family: var(--font-geist-mono), monospace;
+}
+.prose-doc table {
+  border-collapse: collapse;
+  display: block;
+  font-size: 0.9rem;
+  margin: 1.2rem 0;
+  overflow-x: auto;
+  width: 100%;
+}
+.prose-doc td code {
+  white-space: nowrap;
+}
+.prose-doc th {
+  color: var(--fg);
+  font-weight: 600;
+  text-align: left;
+}
+.prose-doc th,
+.prose-doc td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem 0.9rem 0.6rem 0;
+  vertical-align: top;
+}
+.prose-doc blockquote {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--fg);
+  border-radius: 10px;
+  margin: 1.2rem 0;
+  padding: 0.25rem 1rem;
+}
+.prose-doc hr {
+  border-color: var(--border);
+  margin: 2.5rem 0;
+}
+
+/* Shiki emits both themes; show the one that matches the color scheme. */
+.prose-doc .shiki,
+.prose-doc .shiki span {
+  color: var(--shiki-dark);
+}
