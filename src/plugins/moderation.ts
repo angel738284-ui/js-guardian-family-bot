@@ -41,7 +41,7 @@ async function messageToggle(ctx: Ctx, flag: "welcome" | "goodbye", textField: "
 command({
   name: "welcome",
   description: "Welcome messages",
-  category: "admin",
+  category: "group",
   usage: "[on|off|text with @user @group @count]",
   adminOnly: true,
   run: (ctx) => messageToggle(ctx, "welcome", "welcomeText"),
@@ -50,7 +50,7 @@ command({
 command({
   name: "goodbye",
   description: "Goodbye messages",
-  category: "admin",
+  category: "group",
   usage: "[on|off|text with @user @group @count]",
   adminOnly: true,
   run: (ctx) => messageToggle(ctx, "goodbye", "goodbyeText"),
@@ -59,7 +59,7 @@ command({
 command({
   name: "antilink",
   description: "Delete messages with links",
-  category: "admin",
+  category: "group",
   usage: "[on|off]",
   adminOnly: true,
   botAdmin: true,
@@ -74,7 +74,7 @@ command({
 command({
   name: "antispam",
   description: "Delete spam messages",
-  category: "admin",
+  category: "group",
   usage: "[on|off]",
   adminOnly: true,
   botAdmin: true,
@@ -91,7 +91,7 @@ command({
 command({
   name: "groupsettings",
   description: "Show this group's bot settings",
-  category: "admin",
+  category: "group",
   adminOnly: true,
   run: async (ctx) => {
     const s = await getGroupSettings(ctx.chat);
@@ -119,7 +119,7 @@ const PRESETS: Record<string, Partial<GroupSettings>> = {
 command({
   name: "groupsetup",
   description: "Apply a moderation preset",
-  category: "admin",
+  category: "group",
   usage: "recommended|minimal|off",
   adminOnly: true,
   run: async (ctx) => {
@@ -149,7 +149,7 @@ async function requireTarget(ctx: Ctx): Promise<string | null> {
 command({
   name: "warn",
   description: "Warn a member",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   botAdmin: true,
@@ -180,7 +180,7 @@ command({
 command({
   name: "unwarn",
   description: "Reset a member's warnings",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   run: async (ctx) => {
@@ -208,7 +208,7 @@ command({
 command({
   name: "mute",
   description: "Delete every message a member sends",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   botAdmin: true,
@@ -227,7 +227,7 @@ command({
 command({
   name: "unmute",
   description: "Unmute a member",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   audit: true,
@@ -244,7 +244,7 @@ command({
 command({
   name: "kick",
   description: "Remove a member from the group",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   botAdmin: true,
@@ -265,7 +265,7 @@ const ALWAYS_ON = new Set(["enable", "disable", "disabled", "menu", "help", "mod
 command({
   name: "disable",
   description: "Turn a command off in this group",
-  category: "admin",
+  category: "group",
   usage: "<command>",
   adminOnly: true,
   audit: true,
@@ -290,7 +290,7 @@ command({
 command({
   name: "enable",
   description: "Turn a disabled command back on",
-  category: "admin",
+  category: "group",
   usage: "<command>",
   adminOnly: true,
   audit: true,

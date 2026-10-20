@@ -12,7 +12,7 @@ import { hasFfmpeg } from "../lib/media.ts";
 command({
   name: "info",
   description: "Chat and message details",
-  category: "info",
+  category: "system",
   run: async (ctx) => {
     const key = ctx.event.key;
     const lines = [
@@ -54,7 +54,7 @@ command({
 command({
   name: "status",
   description: "Bot health: uptime, mode, FFmpeg",
-  category: "info",
+  category: "system",
   run: async (ctx) => {
     const lines = [
       `*${config.botName}* v${config.version}`,

@@ -1,9 +1,10 @@
 import { config } from "../config.ts";
-import { send } from "../bot/client.ts";
+import { botIdentity, send, sendText } from "../bot/client.ts";
 import { command } from "../core/command.ts";
 import type { Ctx } from "../core/context.ts";
-import { formatGroupInfo, forgetGroup, groupAdmins, participantLabel } from "../features/groups.ts";
-import { isLidJid, mentionTag } from "../lib/jid.ts";
+import { calls } from "../features/calls.ts";
+import { formatGroupInfo, forgetGroup, getGroup, groupAdmins, participantLabel } from "../features/groups.ts";
+import { isLidJid, mentionTag, normalizeId } from "../lib/jid.ts";
 
 command({
   name: "tagall",
@@ -88,7 +89,7 @@ async function changeAdminRole(ctx: Ctx, makeAdmin: boolean): Promise<void> {
 command({
   name: "promote",
   description: "Make a member admin",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   botAdmin: true,
@@ -99,7 +100,7 @@ command({
 command({
   name: "demote",
   description: "Remove admin rights",
-  category: "admin",
+  category: "group",
   usage: "@user",
   adminOnly: true,
   botAdmin: true,
@@ -150,5 +151,52 @@ command({
     }
     await send(target, card);
     await ctx.replyOk(`Invite sent to ${mentionTag(target)}`, { mentions: [target] });
+  },
+});
+
+command({
+  name: "gcall",
+  description: "Start a group voice call; the bot stays until everyone leaves",
+  category: "group",
+  usage: "[end]",
+  groupOnly: true,
+  adminOnly: true,
+  run: async (ctx) => {
+    if (!calls.enabled()) {
+      await ctx.replyFail("Calls are not available on this bot.");
+      return;
+    }
+
+    const current = calls.inGroup(ctx.chat);
+    if (ctx.args.trim().toLowerCase() === "end") {
+      if (!current) {
+        await ctx.replyFail("There is no group call running here.");
+        return;
+      }
+      await current.hangUp();
+      await ctx.replyOk("Left the group call.");
+      return;
+    }
+    if (current) {
+      await ctx.replyFail(`A group call is already running. Use \`${config.prefix}gcall end\` to leave it.`);
+      return;
+    }
+
+    // Everyone except the bot; WhatsApp group calls hold up to 32 people.
+    const group = await getGroup(ctx.chat);
+    const me = botIdentity();
+    const mine = new Set([me.jid, me.lid].filter((id): id is string => Boolean(id)).map(normalizeId));
+    const members = group.participants
+      .filter((member) => ![member.jid, member.lid, member.phoneNumber].some((id) => id && mine.has(normalizeId(id))))
+      .map((member) => member.lid ?? member.jid)
+      .slice(0, 31);
+
+    const call = await calls.startGroup(ctx.chat, members);
+    await ctx.replyOk(`Calling ${members.length} ${members.length === 1 ? "member" : "members"}. I will stay until everyone leaves.`);
+
+    void call.ended().then(() => {
+      const minutes = Math.round((call.duration ?? 0) / 60);
+      return sendText(ctx.chat, minutes ? `_Group call ended after ${minutes} min._` : "_Group call ended._").catch(() => {});
+    });
   },
 });

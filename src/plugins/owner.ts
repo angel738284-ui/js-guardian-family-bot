@@ -73,7 +73,7 @@ command({
 command({
   name: "lang",
   description: "Show or change the bot language",
-  category: "misc",
+  category: "system",
   usage: `[${LANGUAGES.join("|")}]`,
   run: async (ctx) => {
     if (!ctx.args) {

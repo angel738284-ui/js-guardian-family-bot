@@ -1,4 +1,5 @@
 import { getClient, sendText } from "../bot/client.ts";
+import { calls } from "./calls.ts";
 import { kv } from "../db/kv.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 
@@ -8,6 +9,8 @@ export interface Reminder {
   text: string;
   at: number;
   createdBy: string;
+  /** Also ring this number or JID until it answers or declines (up to 3 times). */
+  call?: string;
 }
 
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -25,6 +28,10 @@ export async function addReminder(reminder: Reminder): Promise<void> {
   const list = await loadAll();
   list.push(reminder);
   await saveAll(list);
+}
+
+export async function listAllReminders(): Promise<Reminder[]> {
+  return loadAll();
 }
 
 export async function listReminders(chat: string): Promise<Reminder[]> {
@@ -56,11 +63,35 @@ async function sendDueReminders(): Promise<void> {
       await sendText(reminder.chat, `*Reminder*\n${reminder.text}`).catch((error) =>
         logger.warn(`Reminder ${reminder.id} could not be sent: ${errorMessage(error)}`),
       );
+      if (reminder.call) void ringForReminder(reminder);
     }
   } catch (error) {
     logger.warn(`Reminder check failed: ${errorMessage(error)}`);
   } finally {
     checking = false;
+  }
+}
+
+const OUTCOME_TEXT = {
+  answered: "Picked up the reminder call.",
+  declined: "Reminder call declined.",
+  missed: "Reminder call not answered after 3 tries.",
+};
+
+// Runs in the background so a ringing phone does not hold up other reminders.
+async function ringForReminder(reminder: Reminder): Promise<void> {
+  if (!calls.enabled()) return;
+  if (!reminder.call!.includes("@")) {
+    // Set before the fix that stored full JIDs: bare digits may be a LID, which cannot be called as a number.
+    await sendText(reminder.chat, "_Could not place the reminder call: set the reminder again._").catch(() => {});
+    return;
+  }
+  try {
+    const outcome = await calls.alert(reminder.call!);
+    await sendText(reminder.chat, `_${OUTCOME_TEXT[outcome]}_`);
+  } catch (error) {
+    logger.warn(`Reminder call ${reminder.id} failed: ${errorMessage(error)}`);
+    await sendText(reminder.chat, `_Could not place the reminder call: ${errorMessage(error)}_`).catch(() => {});
   }
 }
 

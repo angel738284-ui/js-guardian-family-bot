@@ -21,6 +21,8 @@ import { setClient } from "./client.ts";
 import { clearSavedLogin, openSessionStore, SESSION_ID } from "./store.ts";
 import { reportSessionEvent } from "./remoteSession.ts";
 import { botStatus } from "./status.ts";
+import { stopCallHost, voipPlugins, wireCalls } from "./voip.ts";
+import { attachCallEvents } from "../features/calls.ts";
 
 const FATAL_REASONS = new Set([
   "stream_error_replaced", // the same login connected somewhere else
@@ -57,6 +59,7 @@ export async function startBot(testOptions: Partial<WaClientOptions> = {}): Prom
 async function createClient(): Promise<WaClient> {
   const store = await openSessionStore();
   const zapoLevel = ZAPO_LOG_LEVELS.find((level) => level === config.zapoLogLevel) ?? "warn";
+  const plugins = await voipPlugins();
 
   const wa = new WaClient(
     {
@@ -65,6 +68,7 @@ async function createClient(): Promise<WaClient> {
       // When WhatsApp rejects the built-in web version, fetch the current one and retry.
       recoverFromClientTooOld: true,
       history: { enabled: false },
+      plugins,
       media: {
         processor: createMediaProcessor(),
         generateThumbnail: true,
@@ -79,6 +83,8 @@ async function createClient(): Promise<WaClient> {
 
   setClient(wa);
   wireEvents(wa);
+  wireCalls(wa);
+  attachCallEvents(wa);
 
   wa.ignoreKey((stanza) => {
     const jid = stanza.remoteJid ?? "";
@@ -226,6 +232,7 @@ async function afterConnected(wa: WaClient): Promise<void> {
 
 export async function stopBot(): Promise<void> {
   closingOnPurpose = true;
+  stopCallHost();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
   stopReminders();

@@ -2,16 +2,14 @@ import { config } from "../config.ts";
 import { command, findCommand, menuCommands, type Category, type Command } from "../core/command.ts";
 import type { Ctx } from "../core/context.ts";
 import { getMode, isPrivileged } from "../features/access.ts";
-import { getLanguage } from "../features/i18n.ts";
 import { formatUptime } from "../lib/format.ts";
 
 const SECTIONS: { category: Category; title: string }[] = [
-  { category: "misc", title: "GENERAL" },
-  { category: "info", title: "INFO" },
-  { category: "media", title: "MEDIA" },
-  { category: "group", title: "GROUP" },
-  { category: "admin", title: "GROUP ADMIN" },
-  { category: "owner", title: "OWNER" },
+  { category: "system", title: "System" },
+  { category: "group", title: "Group" },
+  { category: "media", title: "Media" },
+  { category: "tools", title: "Tools" },
+  { category: "owner", title: "Owner" },
 ];
 
 async function buildMenu(ctx: Ctx): Promise<string> {
@@ -20,23 +18,17 @@ async function buildMenu(ctx: Ctx): Promise<string> {
   const visible = menuCommands().filter((cmd) => showOwner || cmd.category !== "owner");
 
   const lines = [
-    `╭─── *${config.botName.toUpperCase()}* v${config.version}`,
-    `│ Hi ${ctx.pushName || "there"}`,
-    `│ Prefix *${p}*  ·  Mode *${await getMode()}*  ·  Lang *${getLanguage()}*`,
-    `│ ${visible.length} commands  ·  up ${formatUptime(process.uptime())}`,
-    `╰───────────────`,
+    `*${config.botName}* v${config.version}`,
+    `Hi ${ctx.pushName || "there"} · prefix ${p} · ${await getMode()} mode · up ${formatUptime(process.uptime())}`,
   ];
 
   for (const section of SECTIONS) {
-    const list = visible.filter((cmd) => cmd.category === section.category);
-    if (list.length === 0) continue;
-
-    lines.push(``, `┌─ *${section.title}*`);
-    for (const cmd of list) lines.push(`│ ${p}${cmd.name} · _${cmd.description}_`);
-    lines.push(`└────`);
+    const names = visible.filter((cmd) => cmd.category === section.category).map((cmd) => cmd.name);
+    if (names.length === 0) continue;
+    lines.push("", `*${section.title}*`, ...names.map((name) => `  • ${name}`));
   }
 
-  lines.push(``, `› \`${p}help <command>\` shows how to use a command.`);
+  lines.push("", `_${p}help <command> shows how to use one._`);
   return lines.join("\n");
 }
 
@@ -60,7 +52,7 @@ command({
   name: "menu",
   aliases: ["list"],
   description: "Show all commands",
-  category: "misc",
+  category: "system",
   run: async (ctx) => {
     await ctx.reply(await buildMenu(ctx));
   },
@@ -69,7 +61,7 @@ command({
 command({
   name: "help",
   description: "How to use one command",
-  category: "misc",
+  category: "system",
   usage: "<command>",
   run: async (ctx) => {
     const wanted = ctx.args.toLowerCase().replace(config.prefix, "").trim();

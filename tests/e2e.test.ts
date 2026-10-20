@@ -151,15 +151,16 @@ describe("private chat commands", () => {
   test("#menu lists commands by section; owner section only for the owner", async () => {
     await owner.sendConversation("#menu");
     const menu = await nextText(owner);
-    expect(menu).toContain("GENERAL");
-    expect(menu).toContain("#ping");
-    expect(menu).toContain("OWNER");
-    expect(menu).not.toContain("#cmdlist"); // hidden command
+    expect(menu).toContain("*System*");
+    expect(menu).toContain("  • ping");
+    expect(menu).not.toContain("#ping");
+    expect(menu).toContain("*Owner*");
+    expect(menu).not.toContain("cmdlist"); // hidden command
 
     await stranger.sendConversation("#menu");
     const strangerMenu = await nextText(stranger);
-    expect(strangerMenu).toContain("#ping");
-    expect(strangerMenu).not.toContain("OWNER");
+    expect(strangerMenu).toContain("  • ping");
+    expect(strangerMenu).not.toContain("*Owner*");
   });
 
   test("#help shows details and aliases", async () => {
@@ -188,9 +189,24 @@ describe("private chat commands", () => {
     await owner.sendConversation("#remind 10m check the oven");
     expect(await nextText(owner)).toContain("Reminder set");
   });
+
+  test("#remind call sets a reminder that will also ring", async () => {
+    await owner.sendConversation("#remind 2h call take the meds");
+    const set = await nextText(owner);
+    expect(set).toContain("Reminder set");
+    expect(set).toContain("I will also call you");
+
+    await owner.sendConversation("#reminders");
+    const list = await nextText(owner);
+    expect(list).toContain("(call) — take the meds");
+
+    const id = /`(r\w+)`[^\n]*\(call\)/.exec(list)![1];
+    await owner.sendConversation(`#cancelremind ${id}`);
+    expect(await nextText(owner)).toContain("Cancelled");
+  });
 });
 
-describe("eval and demos", () => {
+describe("eval", () => {
   test("#eval runs code for the owner", async () => {
     await owner.sendConversation("#eval 6 * 7");
     expect(await nextText(owner)).toContain("42");
@@ -211,21 +227,6 @@ describe("eval and demos", () => {
     await stranger.sendConversation("#eval 1 + 1");
     expect(await nextText(stranger)).toContain("only for the bot owner");
   });
-
-  test("#demo countdown edits one message", async () => {
-    await owner.sendConversation("#demo countdown");
-    expect(await nextText(owner)).toBe("5");
-    const edit = await nextWith(owner, "protocolMessage", 15_000);
-    expect(edit.editedMessage?.conversation ?? edit.editedMessage?.extendedTextMessage?.text).toBe("4");
-  }, 20_000);
-
-  test("#demo event sends an event card", async () => {
-    // Wait for the countdown from the previous test to finish.
-    await Bun.sleep(5_000);
-    await owner.sendConversation("#demo event");
-    const event = await nextWith(owner, "eventMessage");
-    expect(event.name).toBe("Asena demo meetup");
-  }, 40_000);
 });
 
 describe("status, number request, invite", () => {
@@ -371,5 +372,8 @@ describe("group commands", () => {
 
     await stranger.sendGroupConversation(GROUP, "#invite");
     expect(await nextGroupText(stranger)).toContain("only for group admins");
-  }, 40_000);
+
+    await stranger.sendGroupConversation(GROUP, "#gcall");
+    expect(await nextGroupText(stranger)).toContain("only for group admins");
+  }, 60_000);
 });

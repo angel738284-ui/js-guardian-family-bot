@@ -31,7 +31,7 @@ Render reads `render.yaml` from the repository and asks for:
 | `SESSION_ID` | The ID from step 1 |
 | `OWNER_NUMBER` | Your number with country code, no `+`, e.g. `2348012345678` |
 
-Render builds the Docker image (with FFmpeg) and starts the bot. In the logs you should see:
+Render builds the Docker image (Debian with Bun, Node.js and FFmpeg) and starts the bot. Voice calls (`#remind call`, `#gcall`) work there too: the call audio runs in a small Node.js helper the bot starts by itself. In the logs you should see:
 
 ```text
 ✓ Session loaded from the Asena server

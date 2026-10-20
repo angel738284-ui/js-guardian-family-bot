@@ -1,6 +1,6 @@
 import type { Ctx } from "./context.ts";
 
-export type Category = "misc" | "info" | "group" | "admin" | "media" | "owner";
+export type Category = "system" | "group" | "media" | "tools" | "owner";
 
 export type Permission = "everyone" | "sudo" | "owner";
 

@@ -3,13 +3,14 @@ import { command } from "../core/command.ts";
 import { isPrivileged } from "../features/access.ts";
 import { t } from "../features/i18n.ts";
 import { deleteNote, getNote, listNotes, saveNote } from "../features/notes.ts";
-import { addReminder, cancelReminder, findReminder, listReminders } from "../features/reminders.ts";
+import { calls } from "../features/calls.ts";
+import { addReminder, cancelReminder, findReminder, listAllReminders, listReminders } from "../features/reminders.ts";
 import { parseWhen } from "../lib/format.ts";
 
 command({
   name: "note",
   description: "Personal notes: set, get, del, list",
-  category: "misc",
+  category: "tools",
   usage: "set <id> <text> | get <id> | del <id> | list",
   run: async (ctx) => {
     const p = config.prefix;
@@ -59,34 +60,56 @@ command({
 
 command({
   name: "remind",
-  description: "Set a reminder in this chat",
-  category: "misc",
-  usage: "<10m|2h|1d> <text>",
+  description: "Set a reminder in this chat; add call to get a phone call too",
+  category: "tools",
+  usage: "[call] <10m|2h|1d> <text>",
   run: async (ctx) => {
-    const [when = "", ...rest] = ctx.args.split(/\s+/);
+    const words = ctx.args.split(/\s+/).filter(Boolean);
+    // "call" may come first or right after the time: #remind call 10m ... or #remind 10m call ...
+    const callIndex = words.findIndex((word, index) => index < 2 && word.toLowerCase() === "call");
+    const withCall = callIndex >= 0;
+    if (withCall) words.splice(callIndex, 1);
+    const [when = "", ...rest] = words;
     const at = parseWhen(when);
     const text = rest.join(" ").trim();
 
     if (!at || !text) {
-      await ctx.replyFail(`Usage: \`${config.prefix}remind 10m Check the oven\`\nTimes: 30s, 10m, 2h, 1d`);
+      await ctx.replyFail(
+        `Usage: \`${config.prefix}remind 10m Check the oven\`\nWith a phone call: \`${config.prefix}remind call 10m Take your meds\`\nTimes: 30s, 10m, 2h, 1d`,
+      );
       return;
     }
 
+    let call: string | undefined;
+    if (withCall) {
+      if (!calls.enabled()) {
+        await ctx.replyFail("Calls are not available on this bot.");
+        return;
+      }
+      // Full JID: the phone JID when WhatsApp sent one, otherwise the sender's own @lid.
+      call = ctx.sender;
+      const pending = (await listAllReminders()).filter((reminder) => reminder.call && reminder.createdBy === (ctx.senderIds[0] ?? ""));
+      if (pending.length >= 5) {
+        await ctx.replyFail("You already have 5 call reminders waiting. Cancel one first.");
+        return;
+      }
+    }
+
     const id = `r${Date.now().toString(36)}`;
-    await addReminder({ id, chat: ctx.chat, text, at, createdBy: ctx.senderIds[0] ?? "" });
-    await ctx.replyOk(t("REMINDER_SET", { when: new Date(at).toLocaleString(), id }));
+    await addReminder({ id, chat: ctx.chat, text, at, createdBy: ctx.senderIds[0] ?? "", call });
+    await ctx.replyOk(t("REMINDER_SET", { when: new Date(at).toLocaleString(), id }) + (call ? "\nI will also call you." : ""));
   },
 });
 
 command({
   name: "reminders",
   description: "List pending reminders in this chat",
-  category: "misc",
+  category: "tools",
   run: async (ctx) => {
     const list = await listReminders(ctx.chat);
     await ctx.reply(
       list.length
-        ? `*Reminders:*\n${list.map((r) => `• \`${r.id}\` ${new Date(r.at).toLocaleString()} — ${r.text}`).join("\n")}`
+        ? `*Reminders:*\n${list.map((r) => `• \`${r.id}\` ${new Date(r.at).toLocaleString()}${r.call ? " (call)" : ""} — ${r.text}`).join("\n")}`
         : "*Reminders:* _(none)_",
     );
   },
@@ -95,7 +118,7 @@ command({
 command({
   name: "cancelremind",
   description: "Cancel one of your reminders",
-  category: "misc",
+  category: "tools",
   usage: "<id>",
   run: async (ctx) => {
     const reminder = ctx.args ? await findReminder(ctx.args) : null;
@@ -118,7 +141,7 @@ command({
 command({
   name: "poll",
   description: "Create a poll",
-  category: "misc",
+  category: "tools",
   usage: "Question? | Option A | Option B",
   run: async (ctx) => {
     const [question, ...options] = ctx.args

@@ -11,8 +11,6 @@ Run `#menu` in WhatsApp for the live list, or `#help <command>` for details. The
 | `#info` | Details about the chat and message |
 | `#status` | Uptime, mode and FFmpeg check (more details for owner and sudo) |
 | `#lang [en\|id\|hi]` | Show the language. Owner and sudo can change it. |
-| `#ai <question>` (also `#meta`) | Ask Meta AI and post the answer (only where Meta AI is available) |
-| `#demo <type>` | Try unusual message types: `event`, `countdown`, `pin`, `viewonce`, `ptv`, `voice`, `location`, `live`, `contact`, `link`, `react`, `poll`, `list` |
 
 ## Access (owner and sudo)
 
@@ -31,6 +29,7 @@ Run `#menu` in WhatsApp for the live list, or `#help <command>` for details. The
 | `#mention [text]` (also `#notify`) | admins | Notify every member |
 | `#tagall` | owner, sudo | Tag every member in a numbered list |
 | `#promote`, `#demote` | admins | Change admin rights |
+| `#gcall`, `#gcall end` | admins | Start a group voice call that rings every member; the bot stays (silent) until everyone leaves. `end` takes the bot off. Needs calls installed |
 | `#invite [@user\|number]` | admins | Invite card for this group. Plain `#invite` posts it here; with a person, sends it to them privately. The bot must be admin. |
 
 ## Moderation (group admins)
@@ -71,6 +70,7 @@ YouTube limits: about 15 minutes for audio and 10 minutes for video. Downloads w
 |---------|-------------|
 | `#note set\|get\|del\|list` | Personal notes |
 | `#remind 10m <text>` | Reminder in this chat (`30s`, `10m`, `2h`, `1d`) |
+| `#remind call 10m <text>` | Same, and the bot also calls you, up to 3 times until you pick up or decline (needs calls installed) |
 | `#reminders`, `#cancelremind <id>` | List or cancel reminders |
 | `#poll Question \| A \| B` | Create a poll |
 

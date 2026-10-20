@@ -8,6 +8,7 @@ import { isOwnerNumber } from "../features/access.ts";
 import { writeAudit } from "../features/audit.ts";
 import { getGroup } from "../features/groups.ts";
 import { errorMessage } from "../lib/logger.ts";
+import { calls } from "../features/calls.ts";
 
 const MAX_OUTPUT = 3_500;
 const transpiler = new Bun.Transpiler({ loader: "ts" });
@@ -16,6 +17,9 @@ function evalScope(ctx: Ctx) {
   return {
     ctx,
     client: ctx.client,
+    // Voice calls (src/features/calls.ts); voip is the raw client.voip
+    calls,
+    voip: (ctx.client as unknown as { voip?: unknown }).voip,
     chat: ctx.chat,
     event: ctx.event,
     quoted: ctx.message.quoted,

@@ -121,7 +121,7 @@ function styleText(text: string, upper: number, lower: number): string {
 command({
   name: "fancy",
   description: "Write text in fancy unicode styles",
-  category: "misc",
+  category: "tools",
   usage: "<text>",
   run: async (ctx) => {
     const text = (ctx.args || ctx.message.quoted?.text || "").trim().slice(0, 80);
