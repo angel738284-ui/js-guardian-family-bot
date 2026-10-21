@@ -7,6 +7,7 @@ const DEFAULT_FLAGS: Record<string, boolean> = {
   stickers: true,
   moderation: true,
   broadcast: true,
+  ai: true,
   maintenance: false,
 };
 

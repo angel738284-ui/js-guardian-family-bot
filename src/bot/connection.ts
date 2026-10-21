@@ -11,6 +11,7 @@ import {
 import { createMediaProcessor } from "@zapo-js/media-utils";
 import { config } from "../config.ts";
 import { handleMessage } from "../core/handler.ts";
+import { recordOutgoing } from "../features/ai/history.ts";
 import { addOwnerIds, ownerNumbers } from "../features/access.ts";
 import { ensureLogGroup } from "../features/logGroup.ts";
 import { startReminders, stopReminders } from "../features/reminders.ts";
@@ -153,6 +154,8 @@ function wireEvents(wa: WaClient): void {
   wa.on("message", (event) => {
     handleMessage(wa, event).catch((error) => logger.error("Message handler failed", error));
   });
+
+  wa.on("message_send", (event) => recordOutgoing(event));
 
   wa.on("group", (event) => {
     handleGroupEvent(event).catch((error) => logger.error("Group event handler failed", error));

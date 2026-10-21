@@ -85,6 +85,9 @@ beforeAll(async () => {
   process.env.DATABASE_URL = "";
   process.env.PAIRING_NUMBER = "";
   process.env.ENABLE_EVAL = "true";
+  process.env.AI_URL = "";
+  process.env.AI_KEY = "";
+  process.env.SESSION_ID = "";
   process.env.LOG_LEVEL = process.env.TEST_LOG_LEVEL ?? "error";
   process.env.ZAPO_LOG_LEVEL = process.env.TEST_ZAPO_LOG_LEVEL ?? "error";
 

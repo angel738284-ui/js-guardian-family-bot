@@ -102,6 +102,8 @@ All settings live in `.env`. Bun loads it automatically.
 | `PUBLIC_URL` | `RENDER_EXTERNAL_URL` | The bot's public address, shown in the dashboard to suggest a keep-alive job |
 | `PAIRING_NUMBER` | _(empty)_ | Use a pairing code in the terminal instead of a QR code |
 | `STICKER_PACKNAME` / `STICKER_AUTHOR` | `Asena` | Default sticker pack info |
+| `AI_URL` / `AI_KEY` | `https://utils.asena.fun` with `SESSION_ID`, else empty / _(empty)_ | Utils server address and API key for natural-language AI (see [AI](#ai)). Not needed with `SESSION_ID`. |
+| `AI_NAME` | `Asena` | Name that calls the AI in groups, e.g. "Asena, make this a sticker" |
 | `REMOVEBG_API_KEY` | _(empty)_ | API key for `#removebg` |
 | `ENABLE_EVAL` | `false` | Turn on `#eval` (owner numbers only). See [Testing with #eval](#testing-with-eval). |
 | `LOG_LEVEL` | `info` | Bot logs: `error`, `warn`, `info` or `debug` |
@@ -122,6 +124,20 @@ All settings live in `.env`. Bun loads it automatically.
 | any, with `SESSION_ID` | Asena server, encrypted (local working copy in `data/`) | same |
 
 SQLite and Postgres use drivers that ship with Bun, so nothing needs to be compiled. With Redis, turn on persistence (AOF or RDB) and do not use an eviction policy, or the login can disappear.
+
+---
+
+## AI
+
+Bots linked with a `SESSION_ID` get the AI automatically, with a daily limit. Self-hosted bots set `AI_URL` and `AI_KEY` for their own utils server. With the AI on, people can talk to the bot instead of typing commands. The AI ([Meta Muse](https://dev.meta.ai)) runs on the Asena utils server (`asena-server/utils`) and knows every command the bot has, so each new command is also something the AI can do. When nothing fits, it says the feature is not available yet.
+
+- **Private chats:** any message that is not a command.
+- **Groups:** when someone mentions the bot, replies to it, or writes its name (`AI_NAME`).
+- It sees recent messages in the chat, can search older ones ("send the last image Ade posted again"), run commands on them ("make that a sticker"), and remember facts.
+- Permissions still apply: the AI runs commands as the person who asked.
+- `#ai off` turns it off in one chat (admins in groups); `#flag ai off` turns it off everywhere.
+
+To do this, the bot uploads the chat messages it sees (text, and media keys for re-sending) to the utils server, which deletes them after `MESSAGE_RETENTION_DAYS`.
 
 ---
 

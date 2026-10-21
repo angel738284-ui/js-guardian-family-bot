@@ -12,7 +12,11 @@ export interface Reminder {
   call?: string;
 }
 
+const POLL_MS = 30_000;
+const MIN_DELAY_MS = 200;
+
 let timer: ReturnType<typeof setInterval> | null = null;
+let nextTimer: ReturnType<typeof setTimeout> | null = null;
 let checking = false;
 
 async function loadAll(): Promise<Reminder[]> {
@@ -27,6 +31,7 @@ export async function addReminder(reminder: Reminder): Promise<void> {
   const list = await loadAll();
   list.push(reminder);
   await saveAll(list);
+  await scheduleNext();
 }
 
 export async function listAllReminders(): Promise<Reminder[]> {
@@ -45,6 +50,7 @@ export async function cancelReminder(id: string): Promise<boolean> {
   const list = await loadAll();
   const remaining = list.filter((reminder) => reminder.id !== id);
   await saveAll(remaining);
+  await scheduleNext();
   return remaining.length !== list.length;
 }
 
@@ -68,7 +74,20 @@ async function sendDueReminders(): Promise<void> {
     logger.warn(`Reminder check failed: ${errorMessage(error)}`);
   } finally {
     checking = false;
+    await scheduleNext().catch(() => {});
   }
+}
+
+/** Wakes up exactly when the next reminder is due, so short reminders do not wait for the 30-second poll. */
+async function scheduleNext(): Promise<void> {
+  if (!timer) return;
+  if (nextTimer) clearTimeout(nextTimer);
+  nextTimer = null;
+
+  const next = Math.min(...(await loadAll()).map((reminder) => reminder.at));
+  const delay = next - Date.now();
+  if (!Number.isFinite(delay) || delay > POLL_MS) return;
+  nextTimer = setTimeout(() => void sendDueReminders(), Math.max(delay, MIN_DELAY_MS));
 }
 
 const OUTCOME_TEXT = {
@@ -94,11 +113,13 @@ async function ringForReminder(reminder: Reminder): Promise<void> {
 
 export function startReminders(): void {
   stopReminders();
-  timer = setInterval(sendDueReminders, 30_000);
+  timer = setInterval(sendDueReminders, POLL_MS);
   void sendDueReminders();
 }
 
 export function stopReminders(): void {
   if (timer) clearInterval(timer);
+  if (nextTimer) clearTimeout(nextTimer);
   timer = null;
+  nextTimer = null;
 }

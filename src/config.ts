@@ -71,6 +71,12 @@ export const config = {
 
   removeBgApiKey: text("REMOVEBG_API_KEY"),
 
+  ai: {
+    url: text("AI_URL", sessionId ? "https://utils.asena.fun" : "").replace(/\/+$/, ""),
+    key: text("AI_KEY"),
+    name: text("AI_NAME", "Asena"),
+  },
+
   enableEval: text("ENABLE_EVAL").toLowerCase() === "true",
 
   logLevel: text("LOG_LEVEL", "info"),

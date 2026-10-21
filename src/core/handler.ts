@@ -11,6 +11,8 @@ import { isLogGroup } from "../features/logGroup.ts";
 import { increment, recordCommand, recordError } from "../features/metrics.ts";
 import { runGroupGuards } from "../features/moderation.ts";
 import { checkPolicies } from "../features/policy.ts";
+import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
+import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { findCommand, splitCommand, type Command } from "./command.ts";
 import { createContext, type Ctx } from "./context.ts";
@@ -27,18 +29,21 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
 
   const command = splitCommand(message.text, config.prefix);
   const ctx = createContext(client, event, message, command);
+  recordIncoming(event, message, ctx.sender);
 
   try {
     if (await runGroupGuards(ctx)) return;
-    if (!command) return;
-
-    const definition = findCommand(command.name);
-    if (!definition) return;
 
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
 
-    await runCommand(ctx, definition);
+    if (command) {
+      const definition = findCommand(command.name);
+      if (definition) await runCommand(ctx, definition);
+      return;
+    }
+
+    if (await shouldAnswer(ctx)) await answerWithAi(ctx);
   } catch (error) {
     await reportCrash(ctx, error);
   }
@@ -81,7 +86,7 @@ async function checkRules(ctx: Ctx, cmd: Command): Promise<string | null> {
   return null;
 }
 
-async function runCommand(ctx: Ctx, cmd: Command): Promise<void> {
+export async function runCommand(ctx: Ctx, cmd: Command): Promise<void> {
   const problem = await checkRules(ctx, cmd);
   if (problem !== null) {
     if (problem) await ctx.reply(problem);

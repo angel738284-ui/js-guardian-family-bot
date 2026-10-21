@@ -2,12 +2,14 @@ import { logoutBot, restartBot, stopBot } from "./bot/connection.ts";
 import { finishRemoteSession } from "./bot/remoteSession.ts";
 import { clearSavedLogin, closeSessionStore } from "./bot/store.ts";
 import { closeDatabase, kv } from "./db/kv.ts";
+import { flushHistory } from "./features/ai/history.ts";
 import { errorMessage } from "./lib/logger.ts";
 
 let waitingForWipeConfirmation = false;
 
 export async function shutdown(exitCode = 0, uploadSession = true): Promise<never> {
   await stopBot();
+  await flushHistory().catch(() => {});
   await closeSessionStore().catch(() => {});
   await closeDatabase().catch(() => {});
   if (uploadSession) await finishRemoteSession().catch(() => {});

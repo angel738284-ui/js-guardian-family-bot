@@ -236,6 +236,14 @@ export async function reportSessionEvent(kind: SessionEvent, detail = ""): Promi
   }).catch((error) => logger.debug(`Session event failed: ${errorMessage(error)}`));
 }
 
+/** A one-hour token for the AI server, so bots with a session ID need no AI key of their own. */
+export async function requestAiToken(): Promise<{ token: string; expiresAt: number }> {
+  if (!config.sessionId || !leaseId) throw new Error("No active session.");
+  const response = await request("/api/session/ai-token", { method: "POST" });
+  if (!response.ok) throw new Error(`AI token: ${await errorText(response)}`);
+  return (await response.json()) as { token: string; expiresAt: number };
+}
+
 export async function finishRemoteSession(): Promise<void> {
   if (!config.sessionId || !leaseId) return;
   stopTimers();
