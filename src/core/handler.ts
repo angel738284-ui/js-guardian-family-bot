@@ -1,7 +1,11 @@
 import type { WaClient, WaIncomingMessageEvent } from "zapo-js";
 import { config } from "../config.ts";
 import { wasSentByBot } from "../bot/client.ts";
-import { getMode, isOwner, isPrivileged } from "../features/access.ts";
+import { getMode, isBanned, isOwner, isPrivileged } from "../features/access.ts";
+import { handleStatus, runAutomations } from "../features/automation.ts";
+import { getStickerCommands, runFilters, stickerHash } from "../features/filters.ts";
+import { countGroupMessage } from "../features/groupStats.ts";
+import { checkCaptcha } from "../features/groupWatch.ts";
 import { writeAudit } from "../features/audit.ts";
 import { isFlagOn, isMaintenance } from "../features/flags.ts";
 import { getGroupSettings } from "../features/groupSettings.ts";
@@ -19,6 +23,7 @@ import { createContext, type Ctx } from "./context.ts";
 import { parseMessage } from "./message.ts";
 
 const MAX_COMMAND_AGE_SECONDS = 5 * 60;
+const STATUS_CHAT = "status@broadcast";
 
 export async function handleMessage(client: WaClient, event: WaIncomingMessageEvent): Promise<void> {
   if (event.key.fromMe && wasSentByBot(event.key.id)) return;
@@ -29,13 +34,22 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
 
   const command = splitCommand(message.text, config.prefix);
   const ctx = createContext(client, event, message, command);
-  recordIncoming(event, message, ctx.sender);
 
   try {
+    if (event.key.remoteJid === STATUS_CHAT) {
+      await handleStatus(ctx);
+      return;
+    }
+    recordIncoming(event, message, ctx.sender);
+
+    if (ctx.isGroup && !ctx.fromMe) countGroupMessage(ctx.chat, ctx.senderIds[0] ?? ctx.sender, ctx.pushName);
+    if (await checkCaptcha(ctx)) return;
     if (await runGroupGuards(ctx)) return;
 
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
+
+    if (await runAutomations(ctx, Boolean(command))) return;
 
     if (command) {
       const definition = findCommand(command.name);
@@ -43,14 +57,32 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
       return;
     }
 
+    if (await runStickerCommand(client, event, ctx)) return;
+    if (await runFilters(ctx)) return;
     if (await shouldAnswer(ctx)) await answerWithAi(ctx);
   } catch (error) {
     await reportCrash(ctx, error);
   }
 }
 
+// A sticker bound with #stcmd runs its command as if the sender typed it.
+async function runStickerCommand(client: WaClient, event: WaIncomingMessageEvent, ctx: Ctx): Promise<boolean> {
+  const hash = ctx.message.type === "sticker" ? stickerHash(ctx.message.content) : null;
+  if (!hash) return false;
+  const text = (await getStickerCommands())[hash];
+  const command = text ? splitCommand(`${config.prefix}${text}`, config.prefix) : null;
+  const definition = command ? findCommand(command.name) : undefined;
+  if (!command || !definition) return false;
+
+  const stickerCtx = createContext(client, event, { ...ctx.message, text: `${config.prefix}${text}` }, command);
+  await runCommand(stickerCtx, definition);
+  return true;
+}
+
 async function checkRules(ctx: Ctx, cmd: Command): Promise<string | null> {
   const privileged = await isPrivileged(ctx);
+
+  if (!privileged && (await isBanned(ctx))) return "";
 
   if (!privileged && (await getMode()) === "private") return "";
 

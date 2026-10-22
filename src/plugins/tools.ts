@@ -7,8 +7,8 @@ import { escapeXml, wrapText } from "../lib/format.ts";
 import { userPart } from "../lib/jid.ts";
 import { assertAudioSize, convertToMp3, detectMime, runFfmpeg, tempPath, withTempFiles } from "../lib/media.ts";
 import { svgToWebp } from "../lib/sticker.ts";
-
-const p = config.prefix;
+import { styleText, textStickerSvg } from "../lib/text.ts";
+import { FANCY_STYLES } from "../lib/constants.ts";
 
 command({
   name: "tomp3",
@@ -77,7 +77,7 @@ command({
   run: async (ctx) => {
     const text = (ctx.args || ctx.message.quoted?.text || "").trim().slice(0, 200);
     if (!text) {
-      await ctx.replyFail(`Usage: \`${p}quote <text>\` or reply to a message`);
+      await ctx.replyFail(`Usage: \`${config.prefix}quote <text>\` or reply to a message`);
       return;
     }
 
@@ -98,25 +98,6 @@ command({
   },
 });
 
-const FANCY_STYLES: { name: string; upper: number; lower: number }[] = [
-  { name: "bold", upper: 0x1d400, lower: 0x1d41a },
-  { name: "italic", upper: 0x1d434, lower: 0x1d44e },
-  { name: "bubble", upper: 0x24b6, lower: 0x24d0 },
-  { name: "script", upper: 0x1d4d0, lower: 0x1d4ea },
-  { name: "monospace", upper: 0x1d670, lower: 0x1d68a },
-];
-
-function styleText(text: string, upper: number, lower: number): string {
-  return [...text]
-    .map((char) => {
-      const code = char.codePointAt(0)!;
-      if (code >= 65 && code <= 90) return String.fromCodePoint(upper + code - 65);
-      if (code >= 97 && code <= 122) return String.fromCodePoint(lower + code - 97);
-      return char;
-    })
-    .join("");
-}
-
 command({
   name: "fancy",
   description: "Write text in fancy unicode styles",
@@ -125,7 +106,7 @@ command({
   run: async (ctx) => {
     const text = (ctx.args || ctx.message.quoted?.text || "").trim().slice(0, 80);
     if (!text) {
-      await ctx.replyFail(`Usage: \`${p}fancy <text>\``);
+      await ctx.replyFail(`Usage: \`${config.prefix}fancy <text>\``);
       return;
     }
     await ctx.reply(FANCY_STYLES.map((style) => `*${style.name}*\n${styleText(text, style.upper, style.lower)}`).join("\n\n"));
@@ -147,7 +128,7 @@ command({
       text = withLang[2]!;
     }
     if (!text) {
-      await ctx.replyFail(`Usage: \`${p}tts hello\` or \`${p}tts fr: bonjour\``);
+      await ctx.replyFail(`Usage: \`${config.prefix}tts hello\` or \`${config.prefix}tts fr: bonjour\``);
       return;
     }
 
@@ -162,15 +143,6 @@ command({
   },
 });
 
-function textStickerSvg(text: string, color: string): string {
-  return `
-<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-    font-size="64" font-weight="700" fill="${color}" stroke="#000000" stroke-width="6"
-    paint-order="stroke" font-family="Arial Black, Arial, sans-serif">${escapeXml(text)}</text>
-</svg>`;
-}
-
 command({
   name: "ttp",
   description: "Text to sticker",
@@ -180,7 +152,7 @@ command({
   run: async (ctx) => {
     const text = (ctx.args || ctx.message.quoted?.text || "").trim().slice(0, 40);
     if (!text) {
-      await ctx.replyFail(`Usage: \`${p}ttp <text>\``);
+      await ctx.replyFail(`Usage: \`${config.prefix}ttp <text>\``);
       return;
     }
     await ctx.send({ type: "sticker", media: await svgToWebp(textStickerSvg(text, "#ffffff")), mimetype: "image/webp" });
@@ -196,7 +168,7 @@ command({
   run: async (ctx) => {
     const text = (ctx.args || ctx.message.quoted?.text || "").trim().slice(0, 40);
     if (!text) {
-      await ctx.replyFail(`Usage: \`${p}attp <text>\``);
+      await ctx.replyFail(`Usage: \`${config.prefix}attp <text>\``);
       return;
     }
 

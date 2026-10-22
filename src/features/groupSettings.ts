@@ -12,6 +12,9 @@ export interface GroupSettings {
   warnLimit: number;
   muted: string[];
   disabledCommands: string[];
+  bannedWords: string[];
+  events: boolean;
+  captcha: boolean;
 }
 
 const DEFAULTS: GroupSettings = {
@@ -26,6 +29,9 @@ const DEFAULTS: GroupSettings = {
   warnLimit: 3,
   muted: [],
   disabledCommands: [],
+  bannedWords: [],
+  events: false,
+  captcha: false,
 };
 
 const settingsKey = (groupJid: string) => `group:${groupJid}`;

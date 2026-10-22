@@ -33,10 +33,19 @@ if (authDb !== "sqlite" && !authDbUrl) {
 }
 const dataDir = path.resolve(text("DATA_DIR", "./data"));
 
+let prefix = text("PREFIX", "#");
+
+// The prefix can change at runtime with #prefix; everything reads it through config.prefix.
+export function setPrefix(next: string): void {
+  prefix = next;
+}
+
 export const config = {
   botName: "Asena",
   version: "1.0.0",
-  prefix: text("PREFIX", "#"),
+  get prefix(): string {
+    return prefix;
+  },
 
   owners: phoneList("OWNER_NUMBER"),
   sudo: phoneList("SUDO"),

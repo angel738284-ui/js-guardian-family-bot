@@ -5,6 +5,7 @@ import { importOldSettings } from "./db/importOld.ts";
 import { openDatabase } from "./db/kv.ts";
 import { loadSavedOwner } from "./features/access.ts";
 import { loadLanguage } from "./features/i18n.ts";
+import { loadPrefix } from "./features/prefix.ts";
 import { connectLogGroupToLogger, loadLogGroup } from "./features/logGroup.ts";
 
 async function loadPlugins(): Promise<void> {
@@ -24,6 +25,7 @@ export async function prepareBot(): Promise<void> {
   await openDatabase();
   await importOldSettings();
   await loadLanguage();
+  await loadPrefix();
   await loadSavedOwner();
   await loadLogGroup();
   connectLogGroupToLogger();

@@ -341,6 +341,78 @@ describe("media commands", () => {
   }, 70_000);
 });
 
+describe("commands ported from the Go bot", () => {
+  test("#say sends text and #repo links the source", async () => {
+    await owner.sendConversation("#say hello world");
+    expect(await nextText(owner)).toBe("hello world");
+
+    await owner.sendConversation("#repo");
+    expect(await nextText(owner)).toContain("github.com/shellhaki/asena");
+  }, 30_000);
+
+  test("#say is only for owner and sudo", async () => {
+    await stranger.sendConversation("#say hi");
+    expect(await nextText(stranger)).not.toBe("hi");
+  }, 30_000);
+
+  test("#filter replies to a word in every chat", async () => {
+    await owner.sendConversation("#filter add global hey asena = Hello from the filter!");
+    expect(await nextText(owner)).toContain("saved");
+
+    await stranger.sendConversation("well hey asena");
+    expect(await nextText(stranger)).toBe("Hello from the filter!");
+
+    await owner.sendConversation("#filter del global hey asena");
+    expect(await nextText(owner)).toContain("removed");
+    await stranger.sendConversation("hey asena");
+    await expectSilence(stranger);
+  }, 30_000);
+
+  test("#ban stops someone using commands until #unban", async () => {
+    await owner.sendConversation(`#ban ${STRANGER}`);
+    expect(await nextText(owner)).toContain("can no longer use commands");
+    await stranger.sendConversation("#repo");
+    await expectSilence(stranger);
+
+    await owner.sendConversation(`#unban ${STRANGER}`);
+    expect(await nextText(owner)).toContain("can use commands again");
+    await stranger.sendConversation("#repo");
+    expect(await nextText(stranger)).toContain("github.com");
+  }, 30_000);
+
+  test("#prefix changes the prefix at runtime", async () => {
+    await owner.sendConversation("#prefix !");
+    expect(await nextText(owner)).toContain("Prefix is now `!`");
+
+    await owner.sendConversation("!repo");
+    expect(await nextText(owner)).toContain("github.com");
+    await owner.sendConversation("#repo");
+    await expectSilence(owner);
+
+    await owner.sendConversation("!prefix #");
+    expect(await nextText(owner)).toContain("Prefix is now `#`");
+  }, 30_000);
+
+  test("#afk answers people who message the bot", async () => {
+    await owner.sendConversation("#afk at the gym");
+    expect(await nextText(owner)).toContain("AFK on");
+
+    await stranger.sendConversation("are you there?");
+    expect(await nextText(stranger)).toContain("at the gym");
+
+    await owner.sendConversation("#afk off");
+    expect(await nextText(owner)).toContain("AFK off");
+  }, 30_000);
+
+  test("#autoread and #antiword usage", async () => {
+    await owner.sendConversation("#autoread");
+    expect(await nextText(owner)).toContain("Auto read:");
+
+    await owner.sendConversation("#antiword add x");
+    expect(await nextText(owner)).toContain("only works in groups");
+  }, 30_000);
+});
+
 describe("group commands", () => {
   const GROUP = "120363000000000001@g.us";
 

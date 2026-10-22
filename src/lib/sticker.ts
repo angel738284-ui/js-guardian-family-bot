@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { config } from "../config.ts";
+import type { Ctx } from "../core/context.ts";
 import { kv } from "../db/kv.ts";
 import { runFfmpeg, tempPath, withTempFiles } from "./media.ts";
 
@@ -65,4 +66,9 @@ export async function addStickerInfo(webp: Uint8Array, pack: string, author: str
   await image.load(Buffer.from(webp));
   image.exif = Buffer.concat([header, length, json]);
   return new Uint8Array(await image.save(null));
+}
+
+export async function sendSticker(ctx: Ctx, webp: Uint8Array, pack: string, author: string): Promise<void> {
+  const sticker = await addStickerInfo(webp, pack, author);
+  await ctx.send({ type: "sticker", media: sticker, mimetype: "image/webp" });
 }

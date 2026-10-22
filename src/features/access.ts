@@ -85,3 +85,21 @@ export async function removeSudo(id: string): Promise<string> {
   );
   return normalized;
 }
+
+export async function listBanned(): Promise<string[]> {
+  return (await kv.get<string[]>("banned")) ?? [];
+}
+
+export async function isBanned(sender: Sender): Promise<boolean> {
+  const banned = await listBanned();
+  return banned.length > 0 && sender.senderIds.some((id) => banned.includes(id));
+}
+
+export async function setBanned(id: string, banned: boolean): Promise<string> {
+  const normalized = normalizeId(id);
+  if (!normalized) throw new Error("Invalid number.");
+  const list = (await listBanned()).filter((item) => item !== normalized);
+  if (banned) list.push(normalized);
+  await kv.set("banned", list);
+  return normalized;
+}

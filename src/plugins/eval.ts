@@ -1,52 +1,11 @@
-import * as zapo from "zapo-js";
 import { config } from "../config.ts";
 import * as bot from "../bot/client.ts";
 import { command } from "../core/command.ts";
-import type { Ctx } from "../core/context.ts";
-import { kv } from "../db/kv.ts";
 import { isOwnerNumber } from "../features/access.ts";
 import { writeAudit } from "../features/audit.ts";
-import { getGroup } from "../features/groups.ts";
 import { errorMessage } from "../lib/logger.ts";
-import { calls } from "../features/calls.ts";
-
-const MAX_OUTPUT = 3_500;
-const transpiler = new Bun.Transpiler({ loader: "ts" });
-
-function evalScope(ctx: Ctx) {
-  return {
-    ctx,
-    client: ctx.client,
-    calls,
-    voip: (ctx.client as unknown as { voip?: unknown }).voip,
-    chat: ctx.chat,
-    event: ctx.event,
-    quoted: ctx.message.quoted,
-    reply: (value: unknown) => ctx.reply(typeof value === "string" ? value : Bun.inspect(value)),
-    send: bot.send,
-    group: (jid: string = ctx.chat) => getGroup(jid),
-    kv,
-    config,
-    zapo,
-    proto: zapo.proto,
-  };
-}
-
-function compile(code: string, names: string[]): (scope: object) => Promise<unknown> {
-  const build = (body: string) => {
-    const source = `var __run = async function ({ ${names.join(", ")} }) {\n${body}\n};`;
-    return new Function(`${transpiler.transformSync(source)}\nreturn __run;`)();
-  };
-  try {
-    return build(`return (${code}\n);`);
-  } catch {
-    return build(code);
-  }
-}
-
-function stripCodeFence(text: string): string {
-  return text.replace(/^```(?:ts|js|typescript|javascript)?\s*\n?/i, "").replace(/\n?```\s*$/, "");
-}
+import { compile, evalScope, stripCodeFence } from "../lib/eval.ts";
+import { MAX_COMMAND_OUTPUT } from "../lib/constants.ts";
 
 command({
   name: "eval",
@@ -83,7 +42,7 @@ command({
     }
     const ms = Math.round(performance.now() - started);
 
-    if (output.length > MAX_OUTPUT) output = `${output.slice(0, MAX_OUTPUT)}\n… (${output.length - MAX_OUTPUT} more characters)`;
+    if (output.length > MAX_COMMAND_OUTPUT) output = `${output.slice(0, MAX_COMMAND_OUTPUT)}\n… (${output.length - MAX_COMMAND_OUTPUT} more characters)`;
     await ctx.reply(`\`\`\`\n${output}\n\`\`\`\n_${ms} ms_`);
   },
 });

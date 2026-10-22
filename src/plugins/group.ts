@@ -1,13 +1,14 @@
 import { config } from "../config.ts";
 import { botIdentity, send, sendText } from "../bot/client.ts";
 import { command } from "../core/command.ts";
-import type { Ctx } from "../core/context.ts";
 import { calls } from "../features/calls.ts";
-import { formatGroupInfo, forgetGroup, getGroup, groupAdmins, participantLabel } from "../features/groups.ts";
+import { formatGroupInfo, getGroup, groupAdmins, participantLabel } from "../features/groups.ts";
 import { isLidJid, mentionTag, normalizeId } from "../lib/jid.ts";
+import { changeAdminRole, groupThumbnail } from "../lib/group.ts";
 
 command({
   name: "tagall",
+  aliases: ["tag", "everyone"],
   description: "Tag every member with a numbered list",
   category: "group",
   permission: "sudo",
@@ -66,25 +67,6 @@ command({
   },
 });
 
-async function changeAdminRole(ctx: Ctx, makeAdmin: boolean): Promise<void> {
-  const target = ctx.target();
-  if (!target) {
-    await ctx.replyFail(`Mention a user or reply to their message.\nUsage: \`${config.prefix}${ctx.command} @user\``);
-    return;
-  }
-
-  const results = makeAdmin
-    ? await ctx.client.group.promoteParticipants(ctx.chat, [target])
-    : await ctx.client.group.demoteParticipants(ctx.chat, [target]);
-  forgetGroup(ctx.chat);
-
-  if (results[0]?.status !== "ok") {
-    await ctx.replyFail(`Could not change ${mentionTag(target)} (code ${results[0]?.code ?? "?"}).`, { mentions: [target] });
-    return;
-  }
-  await ctx.replyOk(`${mentionTag(target)} is ${makeAdmin ? "now an admin" : "no longer an admin"}.`, { mentions: [target] });
-}
-
 command({
   name: "promote",
   description: "Make a member admin",
@@ -106,17 +88,6 @@ command({
   audit: true,
   run: (ctx) => changeAdminRole(ctx, false),
 });
-
-async function groupThumbnail(ctx: Ctx): Promise<Uint8Array | null> {
-  try {
-    const picture = await ctx.client.profile.getProfilePicture(ctx.chat, "preview");
-    if (!picture.url) return null;
-    const response = await fetch(picture.url, { signal: AbortSignal.timeout(10_000) });
-    return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
-  } catch {
-    return null;
-  }
-}
 
 command({
   name: "invite",

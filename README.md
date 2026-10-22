@@ -102,7 +102,7 @@ All settings live in `.env`. Bun loads it automatically.
 | `PUBLIC_URL` | `RENDER_EXTERNAL_URL` | The bot's public address, shown in the dashboard to suggest a keep-alive job |
 | `PAIRING_NUMBER` | _(empty)_ | Use a pairing code in the terminal instead of a QR code |
 | `STICKER_PACKNAME` / `STICKER_AUTHOR` | `Asena` | Default sticker pack info |
-| `AI_URL` / `AI_KEY` | `https://utils.asena.fun` with `SESSION_ID`, else empty / _(empty)_ | Utils server address and API key for natural-language AI (see [AI](#ai)). Not needed with `SESSION_ID`. |
+| `AI_URL` / `AI_KEY` | _(empty)_ | Natural-language AI for bots without `SESSION_ID`. [DM me](https://wa.me/shellhakii) for a key. Not needed with `SESSION_ID` or on Render (see [AI](#ai)). |
 | `AI_NAME` | `Asena` | Name that calls the AI in groups, e.g. "Asena, make this a sticker" |
 | `REMOVEBG_API_KEY` | _(empty)_ | API key for `#removebg` |
 | `ENABLE_EVAL` | `false` | Turn on `#eval` (owner numbers only). See [Testing with #eval](#testing-with-eval). |
@@ -129,7 +129,21 @@ SQLite and Postgres use drivers that ship with Bun, so nothing needs to be compi
 
 ## AI
 
-Bots linked with a `SESSION_ID` get the AI automatically, with a daily limit. Self-hosted bots set `AI_URL` and `AI_KEY` for their own utils server. With the AI on, people can talk to the bot instead of typing commands. The AI ([Meta Muse](https://dev.meta.ai)) runs on the Asena utils server (`asena-server/utils`) and knows every command the bot has, so each new command is also something the AI can do. When nothing fits, it says the feature is not available yet.
+With the AI on, people can talk to the bot instead of typing commands. The AI ([Meta Muse](https://dev.meta.ai)) runs on the Asena utils server (`asena-server/utils`) and knows every command the bot has, so each new command is also something the AI can do. When nothing fits, it says the feature is not available yet.
+
+### Turning it on
+
+| How you run the bot | What to do |
+|---|---|
+| With a `SESSION_ID` (from [asena.fun/pair](https://asena.fun/pair), including every Render deploy) | **Nothing.** The AI works out of the box, with a daily limit. |
+| Without a `SESSION_ID` (local login with a QR code in the terminal) | **[DM me on WhatsApp](https://wa.me/shellhakii)** for an AI key, then add both lines to `.env` and restart. |
+
+```env
+AI_URL=https://utils.asena.fun
+AI_KEY=your-key-here
+```
+
+### How it behaves
 
 - **Private chats:** any message that is not a command.
 - **Groups:** when someone mentions the bot, replies to it, or writes its name (`AI_NAME`).

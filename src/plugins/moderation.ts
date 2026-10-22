@@ -1,42 +1,18 @@
 import { config } from "../config.ts";
 import { command, findCommand } from "../core/command.ts";
-import type { Ctx } from "../core/context.ts";
 import {
   addWarn,
   getGroupSettings,
   getWarns,
   resetWarns,
   updateGroupSettings,
-  type GroupSettings,
 } from "../features/groupSettings.ts";
 import { forgetGroup } from "../features/groups.ts";
 import { t } from "../features/i18n.ts";
 import { mentionTag, normalizeId } from "../lib/jid.ts";
-
-const onOff = (value: boolean) => (value ? "ON" : "OFF");
-
-function nextValue(args: string, current: boolean): boolean {
-  const word = args.toLowerCase();
-  if (word === "on") return true;
-  if (word === "off") return false;
-  return !current;
-}
-
-async function messageToggle(ctx: Ctx, flag: "welcome" | "goodbye", textField: "welcomeText" | "goodbyeText") {
-  const settings = await getGroupSettings(ctx.chat);
-  const isToggle = !ctx.args || ["on", "off"].includes(ctx.args.toLowerCase());
-
-  if (isToggle) {
-    const enabled = nextValue(ctx.args, settings[flag]);
-    await updateGroupSettings(ctx.chat, { [flag]: enabled });
-    const key = flag === "welcome" ? (enabled ? "WELCOME_ON" : "WELCOME_OFF") : enabled ? "GOODBYE_ON" : "GOODBYE_OFF";
-    await ctx.reply(t(key));
-    return;
-  }
-
-  await updateGroupSettings(ctx.chat, { [flag]: true, [textField]: ctx.args });
-  await ctx.replyOk(`${flag === "welcome" ? "Welcome" : "Goodbye"} text saved and turned on.\nPlaceholders: @user @group @count`);
-}
+import { nextValue, onOff } from "../lib/args.ts";
+import { messageToggle, requireTarget } from "../lib/group.ts";
+import { ALWAYS_ON, PRESETS } from "../lib/constants.ts";
 
 command({
   name: "welcome",
@@ -110,12 +86,6 @@ command({
   },
 });
 
-const PRESETS: Record<string, Partial<GroupSettings>> = {
-  recommended: { welcome: true, goodbye: true, antilink: true, antispam: true },
-  minimal: { welcome: true, goodbye: false, antilink: false, antispam: false },
-  off: { welcome: false, goodbye: false, antilink: false, antispam: false },
-};
-
 command({
   name: "groupsetup",
   description: "Apply a moderation preset",
@@ -139,12 +109,6 @@ command({
     await ctx.replyOk(`Applied the *${ctx.args.toLowerCase()}* preset.`);
   },
 });
-
-async function requireTarget(ctx: Ctx): Promise<string | null> {
-  const target = ctx.target();
-  if (!target) await ctx.replyFail(`Mention a user or reply to their message.\nUsage: \`${config.prefix}${ctx.command} @user\``);
-  return target;
-}
 
 command({
   name: "warn",
@@ -207,6 +171,7 @@ command({
 
 command({
   name: "mute",
+  aliases: ["antimsg"],
   description: "Delete every message a member sends",
   category: "group",
   usage: "@user",
@@ -260,10 +225,9 @@ command({
   },
 });
 
-const ALWAYS_ON = new Set(["enable", "disable", "disabled", "menu", "help", "mode", "sudo"]);
-
 command({
   name: "disable",
+  aliases: ["discmd", "disablecmd"],
   description: "Turn a command off in this group",
   category: "group",
   usage: "<command>",
@@ -289,6 +253,7 @@ command({
 
 command({
   name: "enable",
+  aliases: ["encmd", "enablecmd"],
   description: "Turn a disabled command back on",
   category: "group",
   usage: "<command>",

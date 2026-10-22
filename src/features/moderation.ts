@@ -30,7 +30,7 @@ export async function runGroupGuards(ctx: Ctx): Promise<boolean> {
   if (!ctx.isGroup || ctx.fromMe) return false;
 
   const settings = await getGroupSettings(ctx.chat);
-  const anyGuardOn = settings.muted.length > 0 || settings.antispam || settings.antilink;
+  const anyGuardOn = settings.muted.length > 0 || settings.antispam || settings.antilink || settings.bannedWords.length > 0;
   if (!anyGuardOn) return false;
 
   const group = await getGroup(ctx.chat).catch(() => null);
@@ -55,6 +55,13 @@ export async function runGroupGuards(ctx: Ctx): Promise<boolean> {
       }
       return true;
     }
+  }
+
+  const lower = ctx.text.toLowerCase();
+  if (settings.bannedWords.some((word) => lower.includes(word))) {
+    if (botCanDelete) await deleteMessage(ctx);
+    await sendText(ctx.chat, "_That word is not allowed here._").catch(() => {});
+    return true;
   }
 
   if (settings.antilink && containsLink(ctx.text)) {

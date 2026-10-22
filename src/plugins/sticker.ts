@@ -1,16 +1,8 @@
 import sharp from "sharp";
 import { config } from "../config.ts";
 import { command } from "../core/command.ts";
-import type { Ctx } from "../core/context.ts";
 import { kv } from "../db/kv.ts";
-import { addStickerInfo, getStickerPack, imageToWebp, videoToWebp } from "../lib/sticker.ts";
-
-const p = config.prefix;
-
-async function sendSticker(ctx: Ctx, webp: Uint8Array, pack: string, author: string): Promise<void> {
-  const sticker = await addStickerInfo(webp, pack, author);
-  await ctx.send({ type: "sticker", media: sticker, mimetype: "image/webp" });
-}
+import { getStickerPack, imageToWebp, sendSticker, videoToWebp } from "../lib/sticker.ts";
 
 command({
   name: "sticker",
@@ -23,7 +15,7 @@ command({
     await ctx.withTyping(async () => {
       const media = await ctx.downloadMedia();
       if (!media || !["image", "video", "sticker"].includes(media.type)) {
-        await ctx.replyFail(`Send or reply to an image/video with \`${p}sticker\``);
+        await ctx.replyFail(`Send or reply to an image/video with \`${config.prefix}sticker\``);
         return;
       }
 
@@ -83,6 +75,7 @@ command({
 
 command({
   name: "exif",
+  aliases: ["stpack"],
   description: "Default sticker pack info",
   category: "owner",
   usage: "Pack|Author",
@@ -90,7 +83,7 @@ command({
   run: async (ctx) => {
     const current = await getStickerPack();
     if (!ctx.args) {
-      await ctx.reply(`*Sticker info*\nPack: ${current.pack}\nAuthor: ${current.author}\n\nUsage: \`${p}exif Pack|Author\``);
+      await ctx.reply(`*Sticker info*\nPack: ${current.pack}\nAuthor: ${current.author}\n\nUsage: \`${config.prefix}exif Pack|Author\``);
       return;
     }
 

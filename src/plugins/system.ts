@@ -13,7 +13,6 @@ import { runSetup } from "../features/setup.ts";
 import { formatUptime } from "../lib/format.ts";
 import { errorMessage } from "../lib/logger.ts";
 
-const p = config.prefix;
 
 command({
   name: "createlog",
@@ -41,7 +40,7 @@ command({
   audit: true,
   run: async (ctx) => {
     await setLogGroupJid(ctx.chat);
-    await ctx.replyOk(`This group is now the *system log group*.\nRun \`${p}setup\` here. Error details will only appear here.`);
+    await ctx.replyOk(`This group is now the *system log group*.\nRun \`${config.prefix}setup\` here. Error details will only appear here.`);
     systemLog("success", `Log group set to ${ctx.chat}`);
   },
 });
@@ -67,7 +66,7 @@ command({
   audit: true,
   run: async (ctx) => {
     if (!ctx.args) {
-      await ctx.replyFail(`Usage: \`${p}broadcast <message>\``);
+      await ctx.replyFail(`Usage: \`${config.prefix}broadcast <message>\``);
       return;
     }
 
@@ -95,7 +94,7 @@ command({
   permission: "sudo",
   run: async (ctx) => {
     if (!isLogGroup(ctx.chat)) {
-      await ctx.replyFail(`Use \`${p}audit\` in the system log group.`);
+      await ctx.replyFail(`Use \`${config.prefix}audit\` in the system log group.`);
       return;
     }
 
@@ -135,12 +134,12 @@ command({
     if (!name || name === "list") {
       const flags = await getFlags();
       const lines = Object.entries(flags).map(([flag, on]) => `• ${flag}: *${on ? "ON" : "OFF"}*`);
-      await ctx.reply(`*Feature flags*\n${lines.join("\n")}\n\nUsage: \`${p}flag ytdl off\``);
+      await ctx.reply(`*Feature flags*\n${lines.join("\n")}\n\nUsage: \`${config.prefix}flag ytdl off\``);
       return;
     }
 
     if (state !== "on" && state !== "off") {
-      await ctx.replyFail(`Usage: \`${p}flag <name> on|off\`\nFlags: ${KNOWN_FLAGS.join(", ")}`);
+      await ctx.replyFail(`Usage: \`${config.prefix}flag <name> on|off\`\nFlags: ${KNOWN_FLAGS.join(", ")}`);
       return;
     }
 
@@ -168,7 +167,7 @@ command({
       const lines = Object.entries(policies).map(([key, value]) => `• ${key}: \`${value ?? "none"}\``);
       await ctx.reply(
         `*Policies*\n${lines.join("\n")}\n\n` +
-          `Examples:\n\`${p}policy rateLimitPerUser 30\`\n\`${p}policy quietHoursStart 22:00\`\n\`${p}policy allowMediaCommands off\``,
+          `Examples:\n\`${config.prefix}policy rateLimitPerUser 30\`\n\`${config.prefix}policy quietHoursStart 22:00\`\n\`${config.prefix}policy allowMediaCommands off\``,
       );
       return;
     }

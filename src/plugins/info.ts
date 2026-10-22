@@ -53,6 +53,7 @@ command({
 
 command({
   name: "status",
+  aliases: ["uptime", "runtime"],
   description: "Bot health: uptime, mode, FFmpeg",
   category: "system",
   run: async (ctx) => {

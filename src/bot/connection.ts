@@ -12,6 +12,9 @@ import { createMediaProcessor } from "@zapo-js/media-utils";
 import { config } from "../config.ts";
 import { handleMessage } from "../core/handler.ts";
 import { recordOutgoing } from "../features/ai/history.ts";
+import { handleCall } from "../features/automation.ts";
+import { watchGroupEvent } from "../features/groupWatch.ts";
+import { startScheduler, stopScheduler } from "../features/schedule.ts";
 import { addOwnerIds, ownerNumbers } from "../features/access.ts";
 import { ensureLogGroup } from "../features/logGroup.ts";
 import { startReminders, stopReminders } from "../features/reminders.ts";
@@ -157,7 +160,12 @@ function wireEvents(wa: WaClient): void {
 
   wa.on("message_send", (event) => recordOutgoing(event));
 
+  wa.on("call", (event) => {
+    handleCall(event).catch((error) => logger.warn("Call handler failed", error));
+  });
+
   wa.on("group", (event) => {
+    watchGroupEvent(event).catch((error) => logger.warn("Group watch failed", error));
     handleGroupEvent(event).catch((error) => logger.error("Group event handler failed", error));
   });
 
@@ -168,6 +176,7 @@ function wireEvents(wa: WaClient): void {
 
 async function handleDisconnect(event: Extract<WaConnectionEvent, { status: "close" }>): Promise<void> {
   stopReminders();
+  stopScheduler();
   if (closingOnPurpose || event.reason === "client_disconnected") return;
 
   if (event.isLogout && config.sessionId) {
@@ -208,6 +217,7 @@ async function handleDisconnect(event: Extract<WaConnectionEvent, { status: "clo
 
 async function afterConnected(wa: WaClient): Promise<void> {
   startReminders();
+  startScheduler();
 
   const owners = ownerNumbers();
   if (owners.length) {
@@ -234,6 +244,7 @@ export async function stopBot(): Promise<void> {
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
   stopReminders();
+  stopScheduler();
   await client?.disconnect().catch(() => {});
 }
 
@@ -247,6 +258,7 @@ export async function restartBot(): Promise<void> {
 export async function logoutBot(): Promise<void> {
   closingOnPurpose = true;
   stopReminders();
+  stopScheduler();
   try {
     await client?.logout();
   } catch (error) {

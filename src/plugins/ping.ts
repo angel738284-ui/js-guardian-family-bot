@@ -3,6 +3,7 @@ import { command } from "../core/command.ts";
 
 command({
   name: "ping",
+  aliases: ["alive"],
   description: "Check the bot is alive",
   category: "system",
   run: async (ctx) => {

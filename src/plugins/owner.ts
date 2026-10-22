@@ -72,6 +72,7 @@ command({
 
 command({
   name: "lang",
+  aliases: ["language", "setlang"],
   description: "Show or change the bot language",
   category: "system",
   usage: `[${LANGUAGES.join("|")}]`,
