@@ -72,3 +72,19 @@ export async function sendSticker(ctx: Ctx, webp: Uint8Array, pack: string, auth
   const sticker = await addStickerInfo(webp, pack, author);
   await ctx.send({ type: "sticker", media: sticker, mimetype: "image/webp" });
 }
+
+// Pack name and author stored in a sticker's EXIF, if any.
+export async function readStickerInfo(webp: Uint8Array): Promise<{ pack: string; author: string } | null> {
+  const { Image } = await import("node-webpmux");
+  const image = new Image();
+  await image.load(Buffer.from(webp));
+  const exif = image.exif?.toString("utf8") ?? "";
+  const json = exif.slice(exif.indexOf("{"), exif.lastIndexOf("}") + 1);
+  if (!json) return null;
+  try {
+    const data = JSON.parse(json) as Record<string, string>;
+    return { pack: data["sticker-pack-name"] ?? "", author: data["sticker-pack-publisher"] ?? "" };
+  } catch {
+    return null;
+  }
+}

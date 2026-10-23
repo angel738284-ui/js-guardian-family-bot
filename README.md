@@ -104,6 +104,7 @@ All settings live in `.env`. Bun loads it automatically.
 | `STICKER_PACKNAME` / `STICKER_AUTHOR` | `Asena` | Default sticker pack info |
 | `AI_URL` / `AI_KEY` | _(empty)_ | Natural-language AI for bots without `SESSION_ID`. [DM me](https://wa.me/shellhakii) for a key. Not needed with `SESSION_ID` or on Render (see [AI](#ai)). |
 | `AI_NAME` | `Asena` | Name that calls the AI in groups, e.g. "Asena, make this a sticker" |
+| `YT_COOKIE` | _(empty)_ | YouTube cookie for `#song` / `#video` on servers. Easier: run `#ytlogin` once. |
 | `REMOVEBG_API_KEY` | _(empty)_ | API key for `#removebg` |
 | `ENABLE_EVAL` | `false` | Turn on `#eval` (owner numbers only). See [Testing with #eval](#testing-with-eval). |
 | `LOG_LEVEL` | `info` | Bot logs: `error`, `warn`, `info` or `debug` |

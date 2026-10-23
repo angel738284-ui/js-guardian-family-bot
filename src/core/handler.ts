@@ -4,7 +4,10 @@ import { wasSentByBot } from "../bot/client.ts";
 import { getMode, isBanned, isOwner, isPrivileged } from "../features/access.ts";
 import { handleStatus, runAutomations } from "../features/automation.ts";
 import { getStickerCommands, runFilters, stickerHash } from "../features/filters.ts";
+import { isAllowedIn } from "../features/allowedCommands.ts";
+import { runGames } from "../features/games.ts";
 import { countGroupMessage } from "../features/groupStats.ts";
+import { cacheMessage } from "../features/messageCache.ts";
 import { checkCaptcha } from "../features/groupWatch.ts";
 import { writeAudit } from "../features/audit.ts";
 import { isFlagOn, isMaintenance } from "../features/flags.ts";
@@ -41,6 +44,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
       return;
     }
     recordIncoming(event, message, ctx.sender);
+    cacheMessage({ chat: ctx.chat, id: event.key.id, sender: ctx.sender, senderName: ctx.pushName, at: Date.now(), content: message.content });
 
     if (ctx.isGroup && !ctx.fromMe) countGroupMessage(ctx.chat, ctx.senderIds[0] ?? ctx.sender, ctx.pushName);
     if (await checkCaptcha(ctx)) return;
@@ -57,6 +61,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
       return;
     }
 
+    if (await runGames(ctx)) return;
     if (await runStickerCommand(client, event, ctx)) return;
     if (await runFilters(ctx)) return;
     if (await shouldAnswer(ctx)) await answerWithAi(ctx);
@@ -84,7 +89,7 @@ async function checkRules(ctx: Ctx, cmd: Command): Promise<string | null> {
 
   if (!privileged && (await isBanned(ctx))) return "";
 
-  if (!privileged && (await getMode()) === "private") return "";
+  if (!privileged && (await getMode()) === "private" && !(await isAllowedIn(ctx.chat, cmd.name))) return "";
 
   if (cmd.permission === "owner" && !isOwner(ctx)) return t("OWNER_ONLY");
   if (cmd.permission === "sudo" && !privileged) return t("SUDO_ONLY");

@@ -79,6 +79,7 @@ export const config = {
   },
 
   removeBgApiKey: text("REMOVEBG_API_KEY"),
+  youtubeCookie: text("YT_COOKIE"),
 
   ai: {
     url: text("AI_URL", sessionId ? "https://utils.asena.fun" : "").replace(/\/+$/, ""),

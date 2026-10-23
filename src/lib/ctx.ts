@@ -40,3 +40,8 @@ export function personFor(ctx: Ctx, fallback: "sender" | "chat" | "none" = "none
   if (fallback === "chat" && !ctx.isGroup) return ctx.chat;
   return null;
 }
+
+// Stable ID for per-person data (notes, budget, ...).
+export function senderKey(ctx: Ctx): string {
+  return ctx.senderIds[0] ?? ctx.sender;
+}

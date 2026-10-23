@@ -5,16 +5,14 @@
     "": {
       "name": "x-asena",
       "dependencies": {
-        "@roamhq/wrtc": "^0.10.0",
         "@zapo-js/media-utils": "^1.0.0",
         "@zapo-js/store-mongo": "^1.2.0",
         "@zapo-js/store-postgres": "^1.2.0",
         "@zapo-js/store-redis": "^1.3.0",
         "@zapo-js/store-sqlite": "^1.3.0",
-        "@zapo-js/voip": "^1.4.0",
         "file-type": "^22.2.0",
         "ioredis": "^6.0.0",
-        "libmlow-wasm-fork": "^0.2.0",
+        "jsqr": "^1.4.0",
         "mongodb": "^7.7.0",
         "node-webpmux": "^3.2.1",
         "pg": "^8.23.1",
@@ -29,6 +27,11 @@
         "@types/qrcode-terminal": "^0.12.2",
         "@zapo-js/fake-server": "^1.3.0",
         "typescript": "^7.0.2",
+      },
+      "optionalDependencies": {
+        "@roamhq/wrtc": "^0.10.0",
+        "@zapo-js/voip": "^1.4.0",
+        "libmlow-wasm-fork": "^0.2.0",
       },
     },
   },
@@ -202,6 +205,8 @@
     "ieee754": ["ieee754@1.2.1", "", {}, "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="],
 
     "ioredis": ["ioredis@6.0.0", "", { "dependencies": { "@ioredis/commands": "2.0.0", "cluster-key-slot": "1.1.1", "debug": "4.4.3", "denque": "2.1.0", "redis-errors": "1.2.0", "standard-as-callback": "2.1.0" } }, "sha512-f+Dtubxfpf6KYFq7WVXJoOLn0bk4TJrMrN9SzeE+jrWrCWj7XX3fA6vkryafhADX+GMymRxgDJDOI33COkJc0w=="],
+
+    "jsqr": ["jsqr@1.4.0", "", {}, "sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A=="],
 
     "libmlow-wasm-fork": ["libmlow-wasm-fork@0.2.0", "", {}, "sha512-6FoGx7UqbqB6Ybywg3a7z/TnGaGDI7PJIyh8TGeYuHb/7QCR8Oewr9MhhzkbAZ57vNfMhhjwQbXEj5gDIjavGQ=="],
 

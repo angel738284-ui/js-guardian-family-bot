@@ -2,6 +2,7 @@ import { getClient, sendText } from "../bot/client.ts";
 import { kv } from "../db/kv.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { getAutoSettings } from "./automation.ts";
+import { sendDueMessages } from "./scheduledMessages.ts";
 
 export interface GroupSchedule {
   close?: string;
@@ -10,7 +11,7 @@ export interface GroupSchedule {
   lastOpen?: string;
 }
 
-const TICK_MS = 30_000;
+const TICK_MS = 15_000;
 const BIO_EVERY_MS = 10 * 60_000;
 const QUOTES = [
   "Stay hungry, stay foolish.",
@@ -111,6 +112,7 @@ export function startScheduler(): void {
   timer = setInterval(() => {
     void runSchedules().catch(() => {});
     void runAutoBio().catch(() => {});
+    void sendDueMessages().catch(() => {});
   }, TICK_MS);
 }
 

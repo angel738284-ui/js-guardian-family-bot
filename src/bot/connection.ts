@@ -13,6 +13,7 @@ import { config } from "../config.ts";
 import { handleMessage } from "../core/handler.ts";
 import { recordOutgoing } from "../features/ai/history.ts";
 import { handleCall } from "../features/automation.ts";
+import { handleProtocolMessage } from "../features/recover.ts";
 import { watchGroupEvent } from "../features/groupWatch.ts";
 import { startScheduler, stopScheduler } from "../features/schedule.ts";
 import { addOwnerIds, ownerNumbers } from "../features/access.ts";
@@ -159,6 +160,10 @@ function wireEvents(wa: WaClient): void {
   });
 
   wa.on("message_send", (event) => recordOutgoing(event));
+
+  wa.on("message_protocol", (event) => {
+    handleProtocolMessage(event).catch((error) => logger.warn("Protocol message handler failed", error));
+  });
 
   wa.on("call", (event) => {
     handleCall(event).catch((error) => logger.warn("Call handler failed", error));

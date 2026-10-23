@@ -56,6 +56,21 @@ export async function checkCaptcha(ctx: Ctx): Promise<boolean> {
   return true;
 }
 
+// Antifake: members whose number does not start with an allowed country code are removed.
+async function removeForeignNumbers(group: string, event: WaGroupEvent, allowed: string[]): Promise<void> {
+  const foreign = (event.participants ?? []).filter((p) => {
+    const phone = (p.phoneJid ?? (p.jid?.endsWith("@s.whatsapp.net") ? p.jid : ""))?.split("@")[0] ?? "";
+    return phone !== "" && !allowed.some((code) => phone.startsWith(code));
+  });
+  if (foreign.length === 0) return;
+
+  const metadata = await getGroup(group).catch(() => null);
+  if (!metadata || !isBotAdmin(metadata)) return;
+  const jids = foreign.map((p) => p.jid!).filter(Boolean);
+  await getClient()?.group.removeParticipants(group, jids);
+  await sendText(group, `_Removed ${jids.map(mentionTag).join(", ")}: only numbers from +${allowed.join(", +")} may join._`, jids);
+}
+
 function describe(event: WaGroupEvent): string | null {
   const who = event.authorJid ? mentionTag(event.authorJid) : "Someone";
   const people = (event.participants ?? []).map((p) => (p.jid ? mentionTag(p.jid) : "someone")).join(", ");
@@ -85,6 +100,10 @@ export async function watchGroupEvent(event: WaGroupEvent): Promise<void> {
   const group = event.groupJid;
   if (!group) return;
   const settings = await getGroupSettings(group);
+
+  if (settings.allowedCountries.length > 0 && event.action === "add") {
+    await removeForeignNumbers(group, event, settings.allowedCountries);
+  }
 
   if (settings.captcha && event.action === "add") {
     for (const participant of event.participants ?? []) {

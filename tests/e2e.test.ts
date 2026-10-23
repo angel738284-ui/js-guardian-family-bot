@@ -413,6 +413,60 @@ describe("commands ported from the Go bot", () => {
   }, 30_000);
 });
 
+describe("commands from Levanter and Queen Elisa", () => {
+  test("budget records income and expenses", async () => {
+    await owner.sendConversation("#income 5000 salary");
+    expect(await nextText(owner)).toContain("Income of 5,000 saved");
+    await owner.sendConversation("#expense 1200 food");
+    expect(await nextText(owner)).toContain("Expense of 1,200 saved");
+    await owner.sendConversation("#budget");
+    const summary = await nextText(owner);
+    expect(summary).toContain("Balance: 3,800");
+    expect(summary).toContain("food");
+    await owner.sendConversation("#delbudget all");
+    expect(await nextText(owner)).toContain("removed");
+  }, 30_000);
+
+  test("scheduled messages can be listed and cancelled", async () => {
+    await owner.sendConversation("#setschedule 2h hello later");
+    const saved = await nextText(owner);
+    const id = saved.match(/id `(\w+)`/)?.[1];
+    expect(id).toBeTruthy();
+    await owner.sendConversation("#getschedule");
+    expect(await nextText(owner)).toContain("hello later");
+    await owner.sendConversation(`#delschedule ${id}`);
+    expect(await nextText(owner)).toContain("cancelled");
+  }, 30_000);
+
+  test("tic-tac-toe plays a full game", async () => {
+    await owner.sendConversation(`#ttt @${STRANGER}`);
+    expect(await nextText(owner)).toContain("Tic-tac-toe");
+    await owner.sendConversation("#ttt end");
+    expect(await nextText(owner)).toContain("Game ended");
+  }, 30_000);
+
+  test("math quiz accepts the right answer", async () => {
+    await owner.sendConversation("#math easy");
+    const question = await nextText(owner);
+    const [, a, op, b] = question.match(/(\d+) ([+\-×÷]) (\d+)/) ?? [];
+    const x = Number(a), y = Number(b);
+    const answer = op === "+" ? x + y : op === "-" ? x - y : op === "×" ? x * y : x / y;
+    await owner.sendConversation(String(answer));
+    expect(await nextText(owner)).toContain("got it");
+  }, 30_000);
+
+  test("antidelete and allowcmd settings", async () => {
+    await owner.sendConversation("#antidelete chat");
+    expect(await nextText(owner)).toContain("Anti-delete: chat");
+    await owner.sendConversation("#antidelete off");
+    expect(await nextText(owner)).toContain("Anti-delete: off");
+    await owner.sendConversation("#allowcmd add sticker");
+    expect(await nextText(owner)).toContain("#sticker");
+    await owner.sendConversation("#allowcmd del sticker");
+    expect(await nextText(owner)).toContain("owner-only");
+  }, 30_000);
+});
+
 describe("group commands", () => {
   const GROUP = "120363000000000001@g.us";
 

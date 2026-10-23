@@ -10,6 +10,8 @@ export type AutoToggle = "autoreact" | "autolike" | "autoview" | "savestatus" | 
 
 export type ReadMode = "off" | "messages" | "status" | "all";
 
+export type RecoverMode = "off" | "chat" | "owner";
+
 export interface AutoSettings {
   autoread: ReadMode;
   autoreact: boolean;
@@ -20,6 +22,9 @@ export interface AutoSettings {
   autobio: boolean;
   afk: { reason: string; since: number } | null;
   onMention: string;
+  antidelete: RecoverMode;
+  antiedit: RecoverMode;
+  greet: string;
 }
 
 const DEFAULTS: AutoSettings = {
@@ -32,6 +37,9 @@ const DEFAULTS: AutoSettings = {
   autobio: false,
   afk: null,
   onMention: "",
+  antidelete: "off",
+  antiedit: "off",
+  greet: "",
 };
 
 const REACTIONS = ["❤️", "😂", "🔥", "👍", "😍", "🙌", "💯", "😮", "👀", "✨"];
@@ -121,6 +129,14 @@ function due(map: Map<string, number>, key: string): boolean {
   return true;
 }
 
+// First message from someone in a private chat gets the greeting once.
+async function greetOnce(ctx: Ctx, greeting: string): Promise<void> {
+  const key = `greeted:${ctx.senderIds[0] ?? ctx.sender}`;
+  if (await kv.get<boolean>(key)) return;
+  await kv.set(key, true);
+  await ctx.reply(greeting.replaceAll("@name", ctx.pushName || "there")).catch(() => {});
+}
+
 // Side effects on every normal message. Returns true when the message was answered here.
 export async function runAutomations(ctx: Ctx, isCommand: boolean): Promise<boolean> {
   const settings = await getAutoSettings();
@@ -145,6 +161,8 @@ export async function runAutomations(ctx: Ctx, isCommand: boolean): Promise<bool
       logger.debug(`Could not save a view-once message: ${errorMessage(error)}`),
     );
   }
+
+  if (settings.greet && !ctx.isGroup) await greetOnce(ctx, settings.greet);
 
   if (isCommand) return false;
   const addressed = !ctx.isGroup || isOwnMention(ctx);

@@ -1,41 +1,82 @@
 import { stat } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
+import type { Innertube, Types } from "youtubei.js";
 import { config } from "../config.ts";
 import type { Ctx } from "../core/context.ts";
+import { kv } from "../db/kv.ts";
 import { enqueueJob } from "../features/queue.ts";
 import { assertAudioSize, removeFile, runFfmpeg, tempPath } from "./media.ts";
 
-const STREAM_CLIENTS = ["IOS", "ANDROID", "TV", "MWEB"] as const;
-const STREAM_HEADERS = { accept: "*/*", origin: "https://www.youtube.com", referer: "https://www.youtube.com" };
-const CHUNK_BYTES = 10 * 1024 * 1024;
+// Tried in order until one gives a stream; different clients get different formats and blocks.
+const AUDIO_CLIENTS = ["YTMUSIC", "IOS", "ANDROID", "WEB", "MWEB", "TV"] as const;
+const VIDEO_CLIENTS = ["WEB", "MWEB", "ANDROID", "IOS", "TV"] as const;
+const EVAL_TIMEOUT_MS = 5_000;
+const LOGIN_KEY = "youtube_login";
 
-interface Format {
-  itag: number;
-  url?: string;
-  mime_type?: string;
-  bitrate?: number;
-  height?: number;
-  has_audio: boolean;
-  has_video: boolean;
-  content_length?: number;
-}
-interface VideoInfo {
-  basic_info: { id?: string; title?: string; duration?: number; author?: string };
-  streaming_data?: { formats?: Format[]; adaptive_formats?: Format[] };
-  cpn?: string;
-}
-interface Innertube {
-  getBasicInfo(id: string, options?: { client?: string }): Promise<VideoInfo>;
-  search(query: string, filters: { type: "video" }): Promise<{ videos?: { id?: string }[] }>;
-}
+type YoutubeModule = typeof import("youtubei.js");
+type Credentials = Parameters<Innertube["session"]["signIn"]>[0];
 
 let youtube: Innertube | null = null;
+let module: YoutubeModule | null = null;
+
+async function loadModule(): Promise<YoutubeModule> {
+  if (module) return module;
+  module = await import("youtubei.js");
+  module.Log.setLevel(module.Log.Level.NONE);
+  // YouTube's player code decodes stream URLs; run it in an isolated VM, never in the bot itself.
+  module.Platform.shim.eval = (data, env) => {
+    const exported = [
+      env.n ? `n: exportedVars.nFunction(${JSON.stringify(env.n)})` : "",
+      env.sig ? `sig: exportedVars.sigFunction(${JSON.stringify(env.sig)})` : "",
+    ].filter(Boolean);
+    return runInNewContext(`(() => { ${data.output}\nreturn { ${exported.join(", ")} }; })()`, {}, { timeout: EVAL_TIMEOUT_MS });
+  };
+  return module;
+}
 
 export async function getYoutube(): Promise<Innertube> {
-  if (!youtube) {
-    const { Innertube } = await import("youtubei.js");
-    youtube = (await Innertube.create({ retrieve_player: false })) as unknown as Innertube;
+  if (youtube) return youtube;
+  const { Innertube, UniversalCache } = await loadModule();
+  const yt = await Innertube.create({
+    cache: new UniversalCache(false),
+    generate_session_locally: true,
+    cookie: config.youtubeCookie || undefined,
+  });
+
+  const saved = await kv.get<Credentials>(LOGIN_KEY);
+  if (saved && !config.youtubeCookie) {
+    yt.session.on("update-credentials", ({ credentials }) => void kv.set(LOGIN_KEY, credentials));
+    await yt.session.signIn(saved).catch(() => kv.delete(LOGIN_KEY));
   }
-  return youtube;
+  youtube = yt;
+  return yt;
+}
+
+// Signs in with a Google device code, like a TV. The login is saved and used for every download.
+export async function youtubeLogin(onCode: (url: string, code: string) => Promise<void>): Promise<void> {
+  const { Innertube, UniversalCache } = await loadModule();
+  const yt = await Innertube.create({ cache: new UniversalCache(false), generate_session_locally: true });
+
+  await new Promise<void>((resolve, reject) => {
+    yt.session.once("auth-pending", (data) => void onCode(data.verification_url, data.user_code).catch(reject));
+    yt.session.once("auth", async ({ credentials }) => {
+      await kv.set(LOGIN_KEY, credentials);
+      resolve();
+    });
+    yt.session.once("auth-error", reject);
+    yt.session.signIn().catch(reject);
+  });
+  youtube = null;
+}
+
+export async function youtubeLogout(): Promise<void> {
+  await kv.delete(LOGIN_KEY);
+  youtube = null;
+}
+
+export async function youtubeLoginState(): Promise<"cookie" | "account" | "none"> {
+  if (config.youtubeCookie) return "cookie";
+  return (await kv.get(LOGIN_KEY)) ? "account" : "none";
 }
 
 export function extractVideoId(input: string): string | null {
@@ -53,13 +94,27 @@ export interface VideoMeta {
   url: string;
 }
 
+export async function searchVideos(query: string, limit = 5): Promise<VideoMeta[]> {
+  const yt = await getYoutube();
+  const results = await yt.search(query, { type: "video" });
+  return results.videos
+    .flatMap((video) => {
+      const item = video as unknown as { id?: string; title?: { text?: string }; author?: { name?: string }; duration?: { seconds?: number } };
+      if (!item.id) return [];
+      return [{
+        id: item.id,
+        title: item.title?.text ?? "Unknown",
+        author: item.author?.name ?? "Unknown",
+        duration: item.duration?.seconds ?? 0,
+        url: `https://youtu.be/${item.id}`,
+      }];
+    })
+    .slice(0, limit);
+}
+
 export async function findVideo(query: string): Promise<VideoMeta> {
   const yt = await getYoutube();
-  let id = extractVideoId(query);
-  if (!id) {
-    const results = await yt.search(query, { type: "video" });
-    id = results.videos?.find((video) => video.id)?.id ?? null;
-  }
+  const id = extractVideoId(query) ?? (await searchVideos(query, 1))[0]?.id;
   if (!id) throw new Error("No results found.");
 
   const info = await yt.getBasicInfo(id);
@@ -72,76 +127,34 @@ export async function findVideo(query: string): Promise<VideoMeta> {
   };
 }
 
-function directFormats(info: VideoInfo): Format[] {
-  const all = [...(info.streaming_data?.formats ?? []), ...(info.streaming_data?.adaptive_formats ?? [])];
-  return all.filter((format) => format.url?.startsWith("http"));
-}
-
-function bestAudio(formats: Format[]): Format | null {
-  const audio = formats.filter((f) => f.has_audio && !f.has_video).sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
-  return audio.find((f) => /mp4/i.test(f.mime_type ?? "")) ?? audio[0] ?? null;
-}
-
-function bestVideo(formats: Format[], withAudio: boolean, maxHeight = 720): Format | null {
-  const candidates = formats.filter((f) => f.has_video && f.has_audio === withAudio);
-  const capped = candidates.filter((f) => (f.height ?? 0) <= maxHeight);
-  const pool = (capped.length ? capped : candidates).sort(
-    (a, b) => (b.height ?? 0) - (a.height ?? 0) || (b.bitrate ?? 0) - (a.bitrate ?? 0),
-  );
-  return pool.find((f) => /mp4|avc1/i.test(f.mime_type ?? "")) ?? pool[0] ?? null;
-}
-
-async function downloadStream(info: VideoInfo, format: Format, extension: string): Promise<string> {
-  let url = format.url!;
-  if (info.cpn && !/[?&]cpn=/.test(url)) url += `&cpn=${info.cpn}`;
-
-  let total = Number(format.content_length) || 0;
-  if (!total) {
-    const probe = await fetch(`${url}&range=0-1023`, { headers: STREAM_HEADERS });
-    total = Number(probe.headers.get("content-range")?.split("/")[1] ?? 0);
-    await probe.arrayBuffer();
-  }
-
-  const filePath = tempPath(extension);
-  const file = Bun.file(filePath).writer();
-  try {
-    if (total > 0) {
-      for (let start = 0; start < total; start += CHUNK_BYTES) {
-        const end = Math.min(start + CHUNK_BYTES, total) - 1;
-        const response = await fetch(`${url}&range=${start}-${end}`, { headers: STREAM_HEADERS });
-        if (!response.ok) throw new Error(`YouTube refused the download (HTTP ${response.status}).`);
-        file.write(new Uint8Array(await response.arrayBuffer()));
-      }
-    } else {
-      const response = await fetch(url, { headers: STREAM_HEADERS });
-      if (!response.ok) throw new Error(`YouTube refused the download (HTTP ${response.status}).`);
-      file.write(new Uint8Array(await response.arrayBuffer()));
-    }
-    await file.end();
-    return filePath;
-  } catch (error) {
-    await file.end();
-    await removeFile(filePath);
-    throw error;
-  }
-}
-
-async function tryEachClient(videoId: string, attempt: (info: VideoInfo, formats: Format[]) => Promise<string | null>): Promise<string> {
+async function downloadStream(id: string, type: "audio" | "video+audio", extension: string): Promise<string> {
   const yt = await getYoutube();
-  let lastError: unknown = null;
+  const { Utils } = await loadModule();
 
-  for (const client of STREAM_CLIENTS) {
+  const info = await yt.getBasicInfo(id);
+  if (info.playability_status?.status && info.playability_status.status !== "OK") {
+    const reason = info.playability_status.reason ?? "YouTube blocked this request.";
+    const hint = (await youtubeLoginState()) === "none" ? `\nLog in with \`${config.prefix}ytlogin\` or set YT_COOKIE, then try again.` : "";
+    throw new Error(`${reason}${hint}`);
+  }
+
+  const clients = type === "audio" ? AUDIO_CLIENTS : VIDEO_CLIENTS;
+  let lastError: unknown = null;
+  for (const client of clients) {
+    const filePath = tempPath(extension);
     try {
-      const info = await yt.getBasicInfo(videoId, { client });
-      const formats = directFormats(info);
-      if (formats.length === 0) continue;
-      const result = await attempt(info, formats);
-      if (result) return result;
+      const options: Types.DownloadOptions = { type, quality: "best", format: "mp4", client };
+      const stream = await yt.download(id, options);
+      const file = Bun.file(filePath).writer();
+      for await (const chunk of Utils.streamToIterable(stream)) file.write(chunk);
+      await file.end();
+      if ((await stat(filePath)).size > 0) return filePath;
     } catch (error) {
       lastError = error;
     }
+    await removeFile(filePath);
   }
-  throw lastError ?? new Error("YouTube did not give a downloadable stream for this video. Try another one or later.");
+  throw lastError instanceof Error ? lastError : new Error("YouTube did not give a downloadable stream. Try again later.");
 }
 
 export async function downloadMp3(video: VideoMeta): Promise<string> {
@@ -149,14 +162,10 @@ export async function downloadMp3(video: VideoMeta): Promise<string> {
     throw new Error(`Too long (max ${config.limits.maxAudioSeconds / 60} minutes for audio).`);
   }
 
-  const raw = await tryEachClient(video.id, async (info, formats) => {
-    const format = bestAudio(formats) ?? bestVideo(formats, true);
-    return format ? downloadStream(info, format, ".audio") : null;
-  });
-
+  const raw = await downloadStream(video.id, "audio", ".m4a");
   const mp3 = tempPath(".mp3");
   try {
-    await runFfmpeg(["-i", raw, "-vn", "-c:a", "libmp3lame", "-b:a", "128k", mp3]);
+    await runFfmpeg(["-i", raw, "-vn", "-c:a", "libmp3lame", "-b:a", "192k", "-ar", "44100", mp3]);
     return mp3;
   } catch (error) {
     await removeFile(mp3);
@@ -170,30 +179,7 @@ export async function downloadMp4(video: VideoMeta): Promise<string> {
   if (video.duration > config.limits.maxVideoSeconds) {
     throw new Error(`Too long (max ${config.limits.maxVideoSeconds / 60} minutes for video).`);
   }
-
-  return tryEachClient(video.id, async (info, formats) => {
-    const videoOnly = bestVideo(formats, false);
-    const audioOnly = bestAudio(formats);
-    if (videoOnly && audioOnly) {
-      const videoPath = await downloadStream(info, videoOnly, ".video");
-      const audioPath = await downloadStream(info, audioOnly, ".audio").catch(() => null);
-      const output = tempPath(".mp4");
-      try {
-        if (audioPath) {
-          await runFfmpeg(["-i", videoPath, "-i", audioPath, "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", output]);
-          return output;
-        }
-      } catch {
-        await removeFile(output);
-      } finally {
-        await removeFile(videoPath);
-        await removeFile(audioPath);
-      }
-    }
-
-    const combined = bestVideo(formats, true);
-    return combined ? downloadStream(info, combined, ".mp4") : null;
-  });
+  return downloadStream(video.id, "video+audio", ".mp4");
 }
 
 export async function sendAudio(ctx: Ctx, filePath: string): Promise<void> {

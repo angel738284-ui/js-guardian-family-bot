@@ -15,6 +15,7 @@ export interface GroupSettings {
   bannedWords: string[];
   events: boolean;
   captcha: boolean;
+  allowedCountries: string[];
 }
 
 const DEFAULTS: GroupSettings = {
@@ -32,6 +33,7 @@ const DEFAULTS: GroupSettings = {
   bannedWords: [],
   events: false,
   captcha: false,
+  allowedCountries: [],
 };
 
 const settingsKey = (groupJid: string) => `group:${groupJid}`;
