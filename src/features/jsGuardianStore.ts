@@ -104,3 +104,22 @@ export async function saveGuardianAudit(e: GuardianAudit): Promise<void> {
 export async function recentGuardianAudit(group: string): Promise<(GuardianAudit & { created_at: string })[]> {
   return (await query("GET", `js_guardian_audit?group_id=${eq(group)}&select=action,actor_id,target_id,details,created_at&order=created_at.desc&limit=10`)) ?? [];
 }
+
+// Acceso a un ámbito completo, usado para los ajustes originales de Asena.
+// La tabla y su política RLS son las mismas del resto de JS Guardian.
+export interface GuardianStateRow { item: string; value: Record<string, unknown> }
+export async function listGuardianStateScope(scope: string): Promise<GuardianStateRow[]> {
+  const results: GuardianStateRow[] = [];
+  const pageSize = 500;
+  for (let offset = 0; ; offset += pageSize) {
+    const path = `js_guardian_state?scope=${eq(scope)}&select=item,value&order=item.asc&limit=${pageSize}&offset=${offset}`;
+    const rows = (await query("GET", path)) as GuardianStateRow[];
+    results.push(...rows);
+    if (rows.length < pageSize) return results;
+    if (offset > 20_000) throw new Error("Supabase tiene demasiadas configuraciones: revisar paginación.");
+  }
+}
+export async function clearGuardianStateScope(scope: string): Promise<void> {
+  if (scope !== "asena:bot_kv") throw new Error("Solo se puede limpiar el ámbito de ajustes Asena.");
+  await query("DELETE", `js_guardian_state?scope=${eq(scope)}`);
+}

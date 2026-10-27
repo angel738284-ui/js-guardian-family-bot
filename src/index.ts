@@ -7,6 +7,7 @@ import { allCommands } from "./core/command.ts";
 import { startAdminHttp } from "./features/adminHttp.ts";
 import { startKeepAlive } from "./features/keepAlive.ts";
 import { errorMessage, logger } from "./lib/logger.ts";
+import { guardianStoreReady } from "./features/jsGuardianStore.ts";
 import { shutdown, startTerminalShortcuts } from "./terminal.ts";
 
 async function main(): Promise<void> {
@@ -16,6 +17,10 @@ async function main(): Promise<void> {
   // Pausa preventiva de la sesión de WhatsApp: conservar Render y los datos,
   // pero no preparar ni conectar el cliente si la cuenta está en revisión.
   if (process.env.JS_GUARDIAN_PAUSED === "true") {
+    // Podemos comprobar que Supabase responde y restaurar ajustes sin
+    // inicializar la sesión ni contactar con WhatsApp/Asena.
+    await prepareBot();
+    console.log("✓ Configuraciones persistentes comprobadas; bot preparado sin conectar WhatsApp.");
     console.log("⏸ JS Guardian en pausa preventiva. No se intentará conectar a WhatsApp.");
     return;
   }
@@ -30,7 +35,7 @@ async function main(): Promise<void> {
   }
 
   await prepareBot();
-  console.log(`✓ Database ready (${config.database.usePostgres ? "Postgres" : config.database.dataDir})`);
+  console.log(`✓ Database ready (${guardianStoreReady() ? "Supabase, persistente" : config.database.usePostgres ? "Postgres" : config.database.dataDir})`);
   console.log(`✓ ${allCommands().length} commands loaded`);
 
   if (config.owners.length === 0) {

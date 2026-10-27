@@ -45,3 +45,24 @@ El resto de los comandos Asena siguen usando `#`. El sistema JS Guardian usa `/`
 - Lógica de dominio permitido frente a dominios parecidos, conteo por minuto e identificadores.
 - Integración real Supabase: escritura/lectura/borrado de bans; incremento/reset de advertencias; configuración; registro de auditoría y consulta.
 - No se ejecutaron expulsiones reales de integrantes sin consentimiento; probar /kick y /ban con una cuenta voluntaria.
+
+## Persistencia total de las configuraciones
+
+El almacén `src/db/kv.ts` de Asena ahora utiliza Supabase cuando existen las
+variables `JS_GUARDIAN_DB_*`. Abarca los ajustes de todos los comandos originales
+y funciones del bot: grupos, bienvenidas, prefijo, permisos, filtros, listas de
+usuarios, recordatorios, automatizaciones y personalizaciones.
+
+- Ámbito único: `public.js_guardian_state` con `scope=asena:bot_kv`.
+- Guarda en Supabase antes de confirmar cada cambio, y cachea en RAM para no
+  consultar Supabase en cada mensaje.
+- Cada inicio recarga todos los ajustes desde Supabase. Si faltan credenciales
+  o el registro de control `asena:meta/kv_ready`, el bot **no se conecta**.
+- En modo `JS_GUARDIAN_PAUSED=true` se comprueba la configuración remota al
+  iniciar, **sin cargar sesión ni conectar a WhatsApp**.
+- Las cuentas de WhatsApp y las sesiones de Asena son independientes de estas
+  configuraciones. Las sesiones no se guardan en esta tabla.
+- No permite recuperar automáticamente ajustes antiguos que estuvieran solo
+  en SQLite y que Render ya hubiera eliminado.
+- La opción de borrado total del bot (terminal A + confirmación) borra también
+  las configuraciones persistentes. Usarla exclusivamente con intención de borrar.
