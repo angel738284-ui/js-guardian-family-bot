@@ -13,6 +13,13 @@ async function main(): Promise<void> {
   console.log(`\n  ${config.botName} v${config.version} · zapo · Bun ${Bun.version}\n`);
   startKeepAlive();
 
+  // Pausa preventiva de la sesión de WhatsApp: conservar Render y los datos,
+  // pero no preparar ni conectar el cliente si la cuenta está en revisión.
+  if (process.env.JS_GUARDIAN_PAUSED === "true") {
+    console.log("⏸ JS Guardian en pausa preventiva. No se intentará conectar a WhatsApp.");
+    return;
+  }
+
   if (config.sessionId) {
     await prepareRemoteSession();
     console.log("✓ Session loaded from the Asena server");
