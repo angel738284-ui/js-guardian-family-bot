@@ -1,10 +1,7 @@
 import { config } from "../config.ts";
 import { command, findCommand } from "../core/command.ts";
 import {
-  addWarn,
   getGroupSettings,
-  getWarns,
-  resetWarns,
   updateGroupSettings,
 } from "../features/groupSettings.ts";
 import { forgetGroup } from "../features/groups.ts";
@@ -13,6 +10,8 @@ import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { nextValue, onOff } from "../lib/args.ts";
 import { messageToggle, requireTarget } from "../lib/group.ts";
 import { ALWAYS_ON, PRESETS } from "../lib/constants.ts";
+import { guardianWarn, guardianLog, guardianCanonicalId } from "../features/jsGuardian.ts";
+import { guardianWarnings, updateGuardianWarnings } from "../features/jsGuardianStore.ts";
 
 command({
   name: "welcome",
@@ -34,6 +33,7 @@ command({
 
 command({
   name: "antilink",
+  permission: "owner",
   description: "Delete messages with links",
   category: "group",
   usage: "[on|off]",
@@ -49,6 +49,7 @@ command({
 
 command({
   name: "antispam",
+  permission: "owner",
   description: "Delete spam messages",
   category: "group",
   usage: "[on|off]",
@@ -88,6 +89,7 @@ command({
 
 command({
   name: "groupsetup",
+  permission: "owner",
   description: "Apply a moderation preset",
   category: "group",
   usage: "recommended|minimal|off",
@@ -111,61 +113,35 @@ command({
 });
 
 command({
-  name: "warn",
-  description: "Warn a member",
-  category: "group",
-  usage: "@user",
-  adminOnly: true,
-  botAdmin: true,
-  flag: "moderation",
-  audit: true,
+  name: "warn", description: "Advertir a un integrante (3 advertencias = expulsión)",
+  category: "group", usage: "@usuario", permission: "owner",
+  adminOnly: true, botAdmin: true, flag: "moderation", audit: true,
   run: async (ctx) => {
     const target = await requireTarget(ctx);
     if (!target) return;
-
-    const settings = await getGroupSettings(ctx.chat);
-    const count = await addWarn(ctx.chat, normalizeId(target));
-    const tag = mentionTag(target);
-    await ctx.reply(t("WARNED", { user: tag, count, limit: settings.warnLimit }), { mentions: [target] });
-
-    if (count < settings.warnLimit) return;
-
-    const [result] = await ctx.client.group.removeParticipants(ctx.chat, [target]);
-    if (result?.status === "ok") {
-      await resetWarns(ctx.chat, normalizeId(target));
-      forgetGroup(ctx.chat);
-      await ctx.reply(t("KICKED_WARNS", { user: tag }), { mentions: [target] });
-    } else {
-      await ctx.replyFail(`Could not remove ${tag} (code ${result?.code ?? "?"}).`, { mentions: [target] });
-    }
+    await guardianWarn(ctx.chat, normalizeId(ctx.sender), target);
   },
 });
 
 command({
-  name: "unwarn",
-  description: "Reset a member's warnings",
-  category: "group",
-  usage: "@user",
-  adminOnly: true,
+  name: "unwarn", description: "Borrar advertencias persistentes",
+  category: "group", usage: "@usuario", permission: "owner", adminOnly: true,
   run: async (ctx) => {
     const target = await requireTarget(ctx);
     if (!target) return;
-    await resetWarns(ctx.chat, normalizeId(target));
-    await ctx.replyOk(`Warnings reset for ${mentionTag(target)}`, { mentions: [target] });
+    await updateGuardianWarnings(ctx.chat, await guardianCanonicalId(ctx.chat, target), "reset");
+    await guardianLog({group_id:ctx.chat,action:"ADVERTENCIAS REINICIADAS",actor_id:normalizeId(ctx.sender),target_id:normalizeId(target)});
+    await ctx.replyOk(`Advertencias eliminadas para ${mentionTag(target)}.`, { mentions: [target] });
   },
 });
 
 command({
-  name: "warns",
-  description: "Show warnings",
-  category: "group",
-  usage: "[@user]",
-  groupOnly: true,
+  name: "warns", description: "Mostrar advertencias persistentes",
+  category: "group", usage: "[@usuario]", permission: "owner", groupOnly: true,
   run: async (ctx) => {
     const target = ctx.target() ?? ctx.sender;
-    const settings = await getGroupSettings(ctx.chat);
-    const count = await getWarns(ctx.chat, normalizeId(target));
-    await ctx.reply(`Warnings for ${mentionTag(target)}: *${count}/${settings.warnLimit}*`, { mentions: [target] });
+    const count = await guardianWarnings(ctx.chat, await guardianCanonicalId(ctx.chat, target));
+    await ctx.reply(`⚠️ Advertencias de ${mentionTag(target)}: *${count}/3*.`, { mentions: [target] });
   },
 });
 
@@ -221,7 +197,10 @@ command({
     if (!target) return;
     const [result] = await ctx.client.group.removeParticipants(ctx.chat, [target]);
     forgetGroup(ctx.chat);
-    if (result?.status === "ok") await ctx.replyOk(`✅ ${mentionTag(target)} fue expulsado del grupo.`, { mentions: [target] });
+    if (result?.status === "ok") {
+      await guardianLog({group_id: ctx.chat, action: "KICK", actor_id: normalizeId(ctx.sender), target_id: normalizeId(target)});
+      await ctx.replyOk(`✅ ${mentionTag(target)} fue expulsado del grupo.`, { mentions: [target] });
+    }
     else await ctx.replyFail(`No se pudo expulsar a ${mentionTag(target)} (código ${result?.code ?? "?"}).`, { mentions: [target] });
   },
 });

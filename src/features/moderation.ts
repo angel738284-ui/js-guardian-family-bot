@@ -4,6 +4,8 @@ import { isPrivileged } from "./access.ts";
 import { getGroupSettings } from "./groupSettings.ts";
 import { getGroup, isBotAdmin, isGroupAdmin } from "./groups.ts";
 import { t } from "./i18n.ts";
+import { blockedLinkIn } from "./jsGuardianLogic.ts";
+import { getGuardianConfig } from "./jsGuardianStore.ts";
 
 const LINK_PATTERN = /(?:https?:\/\/|www\.|wa\.me\/|chat\.whatsapp\.com\/|t\.me\/)\S+/i;
 
@@ -64,7 +66,7 @@ export async function runGroupGuards(ctx: Ctx): Promise<boolean> {
     return true;
   }
 
-  if (settings.antilink && containsLink(ctx.text)) {
+  if (settings.antilink && containsLink(ctx.text) && blockedLinkIn(ctx.text, (await getGuardianConfig(ctx.chat)).allowedDomains)) {
     if (botCanDelete) await deleteMessage(ctx);
     await sendText(ctx.chat, t("ANTILINK")).catch(() => {});
     return true;

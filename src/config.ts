@@ -41,7 +41,7 @@ export function setPrefix(next: string): void {
 }
 
 export const config = {
-  botName: "Asena",
+  botName: "JS Guardian",
   version: "1.0.0",
   get prefix(): string {
     return prefix;

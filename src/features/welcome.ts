@@ -4,6 +4,8 @@ import { botIdentity, sendText } from "../bot/client.ts";
 import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { getGroupSettings } from "./groupSettings.ts";
+import { bannedAliases } from "./jsGuardianStore.ts";
+import { memberAliases } from "./jsGuardianLogic.ts";
 import { forgetGroup, getGroup } from "./groups.ts";
 import { isLogGroup } from "./logGroup.ts";
 
@@ -50,6 +52,8 @@ export async function handleGroupEvent(event: WaGroupEvent): Promise<void> {
         );
         continue;
       }
+
+      if (joined && await bannedAliases(groupJid, memberAliases([participant.jid, participant.lidJid, participant.phoneJid]))) continue;
 
       const template = joined && settings.welcome ? settings.welcomeText : left && settings.goodbye ? settings.goodbyeText : null;
       if (!template) continue;

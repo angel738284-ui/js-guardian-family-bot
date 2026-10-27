@@ -17,6 +17,7 @@ import { t } from "../features/i18n.ts";
 import { isLogGroup } from "../features/logGroup.ts";
 import { increment, recordCommand, recordError } from "../features/metrics.ts";
 import { runGroupGuards } from "../features/moderation.ts";
+import { runGuardianGuards } from "../features/jsGuardian.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { recordIncoming } from "../features/ai/history.ts";
@@ -38,7 +39,11 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const command = normalCommand ?? (slashCommand && ["reglas", "kick"].includes(slashCommand.name) ? slashCommand : null);
+  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs"];
+  const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
+    ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
+    : null;
+  const command = normalCommand ?? translated;
   const ctx = createContext(client, event, message, command);
 
   try {
@@ -51,6 +56,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
 
     if (ctx.isGroup && !ctx.fromMe) countGroupMessage(ctx.chat, ctx.senderIds[0] ?? ctx.sender, ctx.pushName);
     if (await checkCaptcha(ctx)) return;
+    if (await runGuardianGuards(ctx)) return;
     if (await runGroupGuards(ctx)) return;
 
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);

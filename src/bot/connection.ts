@@ -15,6 +15,7 @@ import { recordOutgoing } from "../features/ai/history.ts";
 import { handleCall } from "../features/automation.ts";
 import { handleProtocolMessage } from "../features/recover.ts";
 import { watchGroupEvent } from "../features/groupWatch.ts";
+import { handleGuardianJoin } from "../features/jsGuardian.ts";
 import { startScheduler, stopScheduler } from "../features/schedule.ts";
 import { addOwnerIds, ownerNumbers } from "../features/access.ts";
 import { ensureLogGroup } from "../features/logGroup.ts";
@@ -170,6 +171,7 @@ function wireEvents(wa: WaClient): void {
   });
 
   wa.on("group", (event) => {
+    handleGuardianJoin(event).catch((error) => logger.warn("JS Guardian join check failed", error));
     watchGroupEvent(event).catch((error) => logger.warn("Group watch failed", error));
     handleGroupEvent(event).catch((error) => logger.error("Group event handler failed", error));
   });

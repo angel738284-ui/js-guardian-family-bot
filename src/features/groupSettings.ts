@@ -1,4 +1,5 @@
 import { kv } from "../db/kv.ts";
+import { JS_FAMILY_WELCOME } from "./jsGuardianWelcome.ts";
 
 export interface GroupSettings {
   welcome: boolean;
@@ -19,8 +20,8 @@ export interface GroupSettings {
 }
 
 const DEFAULTS: GroupSettings = {
-  welcome: false,
-  welcomeText: "Welcome @user to *@group*!\nMembers: @count",
+  welcome: true,
+  welcomeText: JS_FAMILY_WELCOME,
   goodbye: false,
   goodbyeText: "@user left *@group*.",
   antilink: false,
