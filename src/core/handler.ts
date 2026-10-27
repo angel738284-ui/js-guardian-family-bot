@@ -35,7 +35,10 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   if (!message) return;
   increment("messages_in");
 
-  const command = splitCommand(message.text, config.prefix);
+  // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
+  const normalCommand = splitCommand(message.text, config.prefix);
+  const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
+  const command = normalCommand ?? (slashCommand && ["reglas", "kick"].includes(slashCommand.name) ? slashCommand : null);
   const ctx = createContext(client, event, message, command);
 
   try {

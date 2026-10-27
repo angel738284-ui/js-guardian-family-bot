@@ -208,9 +208,10 @@ command({
 
 command({
   name: "kick",
-  description: "Remove a member from the group",
+  description: "Expulsar a un integrante del grupo (solo EL LÍDER)",
   category: "group",
-  usage: "@user",
+  usage: "@usuario o responder su mensaje",
+  permission: "owner",
   adminOnly: true,
   botAdmin: true,
   flag: "moderation",
@@ -220,8 +221,8 @@ command({
     if (!target) return;
     const [result] = await ctx.client.group.removeParticipants(ctx.chat, [target]);
     forgetGroup(ctx.chat);
-    if (result?.status === "ok") await ctx.replyOk(`Removed ${mentionTag(target)}`, { mentions: [target] });
-    else await ctx.replyFail(`Could not remove ${mentionTag(target)} (code ${result?.code ?? "?"}).`, { mentions: [target] });
+    if (result?.status === "ok") await ctx.replyOk(`✅ ${mentionTag(target)} fue expulsado del grupo.`, { mentions: [target] });
+    else await ctx.replyFail(`No se pudo expulsar a ${mentionTag(target)} (código ${result?.code ?? "?"}).`, { mentions: [target] });
   },
 });
 
