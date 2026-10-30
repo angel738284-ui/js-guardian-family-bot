@@ -21,6 +21,7 @@ import { runGuardianGuards } from "../features/jsGuardian.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
+import { isJSLeader, isLeaderIdentityQuestion, leaderIdentityReply } from "../features/ai/leaderIdentity.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { findCommand, splitCommand, type Command } from "./command.ts";
@@ -74,6 +75,12 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await runGames(ctx)) return;
     if (await runStickerCommand(client, event, ctx)) return;
     if (await runFilters(ctx)) return;
+    // Identidad del líder: verificamos el remitente real, no el nombre que escriben.
+    // Responde incluso si la API de IA agotó sus créditos.
+    if (isJSLeader(ctx) && isLeaderIdentityQuestion(ctx.text)) {
+      await ctx.reply(leaderIdentityReply());
+      return;
+    }
     if (kieConfigured()) {
       if (await shouldAnswerWithKie(ctx)) await answerWithKie(ctx);
     } else if (await shouldAnswer(ctx)) await answerWithAi(ctx);
