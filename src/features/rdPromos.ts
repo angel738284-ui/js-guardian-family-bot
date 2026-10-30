@@ -124,3 +124,24 @@ export async function consultRdPromos(id: string): Promise<RdPromoSnapshot> {
   try { return await query; }
   finally { pending.delete(id); }
 }
+
+/** Lista pública de precios JS Recargas (ARS), separada de la verificación por ID. */
+export function formatJsPriceLists(): string {
+  const money = (value: number) => "$" + new Intl.NumberFormat("es-AR").format(value);
+  return [
+    "💎 *RECARGAS JS · PRECIOS*",
+    "",
+    "🔥 *PRECIOS CON PROMOS*",
+    ...RD_PACKAGES.map(pack => "💎 " + pack + " — " + money(RD_PROMO_PRICES[pack]!)),
+    "",
+    "— Recargas JS —",
+    "",
+    "💵 *PRECIOS SIN PROMOS*",
+    ...RD_PACKAGES.map(pack => "💎 " + pack + " — " + money(RD_REGULAR_PRICES[pack]!)),
+    "",
+    "— Recargas JS —",
+    "",
+    "ℹ️ La tarifa promocional se aplica solo a los paquetes que tengan promoción activa para el ID.",
+    "🔎 El administrador puede comprobarlo con /promo ID.",
+  ].join("\n");
+}

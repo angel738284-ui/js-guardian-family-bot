@@ -1,10 +1,10 @@
 import { command } from "../core/command.ts";
-import { consultRdPromos, formatRdPromos } from "../features/rdPromos.ts";
+import { consultRdPromos, formatRdPromos, formatJsPriceLists } from "../features/rdPromos.ts";
 
 // Solo el dueño puede gastar cuota de Volsever. Funciona en privado o en grupo.
 command({
   name: "promord",
-  aliases: ["promosrd"],
+  aliases: ["promosrd", "promo"],
   description: "Verificar descuentos de Free Fire PagoStore RD por ID (solo consulta)",
   category: "tools",
   usage: "<ID Free Fire>",
@@ -12,7 +12,7 @@ command({
   run: async (ctx) => {
     const id = ctx.args.trim();
     if (!/^\d{6,15}$/.test(id)) {
-      await ctx.reply("🔎 Usá * /promord 11572310927 * (reemplazá por el ID del jugador).");
+      await ctx.reply("🔎 Usá */promo 11572310927* (reemplazá por el ID del jugador).");
       return;
     }
     try {
@@ -21,5 +21,14 @@ command({
     } catch (error) {
       await ctx.reply("⚠️ " + (error instanceof Error ? error.message : "No se pudo consultar PagoStore RD."));
     }
+  },
+});
+
+command({
+  name: "precios",
+  description: "Mostrar precios de diamantes JS Recargas con y sin promociones",
+  category: "tools",
+  run: async (ctx) => {
+    await ctx.reply(formatJsPriceLists());
   },
 });

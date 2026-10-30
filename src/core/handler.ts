@@ -41,11 +41,13 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
     : null;
-  const command = normalCommand ?? translated;
+  // Aceptar .precios sin alterar otros comandos con el prefijo de Asena.
+  const dotCommand = normalCommand || translated ? null : splitCommand(message.text, ".");
+  const command = normalCommand ?? translated ?? (dotCommand?.name === "precios" ? dotCommand : null);
   const ctx = createContext(client, event, message, command);
 
   try {

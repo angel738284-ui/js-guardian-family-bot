@@ -114,7 +114,8 @@ command({
     "/permitirlink dominio.com\n"+
     "/quitarlink dominio.com\n"+
     "/links — Ver excepciones\n"+
-    "/promord ID — Ver promociones RD (solo administrador)\n"+
+    "/promo ID — Revisar promos del ID (solo administrador)\n"+
+    "/precios o .precios — Lista de precios con y sin promo\n"+
     "/kie — Estado de la IA GPT-6 Luna\n"+
     "/kie on|off — Activar o apagar IA en este chat\n"+
     "/caracter 0|1|2|3 — Ajustar estilo del bot\n"+
