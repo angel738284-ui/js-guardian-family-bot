@@ -18,6 +18,29 @@ const warnedBurstAt = new Map<string, number>();
 const MINUTE = 60_000;
 const WARN_LIMIT = 3;
 
+async function reportStickerEvidence(ctx: Ctx, category: string, confidence: number): Promise<void> {
+  const destination = getLogGroupJid();
+  if (!destination) return;
+  const reason = category === "explicit_sex" ? "Contenido sexual explícito" : "Violencia gráfica extrema";
+  await sendText(destination, [
+    "🔎 *EVIDENCIA DE MODERACIÓN*",
+    "👤 Usuario: " + normalizeId(ctx.sender),
+    "👥 Grupo: " + ctx.chat,
+    "⚠️ Motivo: " + reason,
+    "🤖 Confianza declarada: " + Math.round(confidence * 100) + "%",
+    "📎 Sticker original a continuación (si se puede recuperar).",
+    "La clasificación automática puede equivocarse."
+  ].join("\n")).catch(err => logger.warn("No se pudo enviar informe: " + errorMessage(err)));
+  try {
+    const bytes = await ctx.client.message.downloadBytes(ctx.event);
+    if (!bytes?.length || bytes.length > 2_500_000) return;
+    await send(destination, { type: "sticker", media: bytes, mimetype: "image/webp" });
+  } catch (err) {
+    logger.warn("No se pudo enviar sticker de evidencia: " + errorMessage(err));
+    await sendText(destination, "⚠️ No se pudo recuperar el sticker original para revisión.").catch(() => {});
+  }
+}
+
 export async function guardianLog(data: GuardianAudit): Promise<void> {
   try { await saveGuardianAudit(data); }
   catch (err) { logger.warn("No se pudo guardar el registro JS Guardian: " + errorMessage(err)); }
@@ -69,6 +92,7 @@ export async function runGuardianGuards(ctx: Ctx): Promise<boolean> {
     if (ctx.message.type === "sticker" && config.antiExplicitSticker) {
       const verdict = await classifySticker(ctx);
       if (verdict && (verdict.category === "explicit_sex" || verdict.category === "graphic_gore") && verdict.confidence >= 0.98) {
+        await reportStickerEvidence(ctx, verdict.category, verdict.confidence);
         await send(ctx.chat, { type: "revoke", target: ctx.event }).catch(() => {});
         const result = await guardianBan(ctx.chat, ctx.sender, "DETECTOR_VISUAL");
         await guardianLog({ group_id: ctx.chat, action: "STICKER EXPLÍCITO", actor_id: "DETECTOR_VISUAL", target_id: normalizeId(ctx.sender), details: verdict.category + " " + verdict.confidence });
@@ -91,6 +115,8 @@ export async function runGuardianGuards(ctx: Ctx): Promise<boolean> {
       }
     }
     if (config.antiLink && blockedLinkIn(ctx.text, config.allowedDomains)) {
+      const destination = getLogGroupJid();
+      if (destination) await sendText(destination, "🔎 *MENSAJE ELIMINADO POR ENLACE*\n👤 Usuario: " + normalizeId(ctx.sender) + "\n👥 Grupo: " + ctx.chat + "\n💬 Mensaje original:\n" + ctx.text.slice(0, 1800)).catch(() => {});
       await send(ctx.chat, { type: "revoke", target: ctx.event }).catch(() => {});
       await guardianLog({ group_id: ctx.chat, action: "ENLACE BORRADO", actor_id: "ANTILINK", target_id: normalizeId(ctx.sender), details: "Enlace no permitido" });
       await sendText(ctx.chat, `🔗 ${mentionTag(ctx.sender)}, ese enlace no está permitido.`, [ctx.sender]).catch(() => {});
