@@ -114,5 +114,6 @@ command({
     "/permitirlink dominio.com\n"+
     "/quitarlink dominio.com\n"+
     "/links — Ver excepciones\n"+
+    "/promord ID — Ver promociones RD (solo administrador)\n"+
     "/sanciones — Ver historial"),
 });
