@@ -18,6 +18,7 @@ import { isLogGroup } from "../features/logGroup.ts";
 import { increment, recordCommand, recordError } from "../features/metrics.ts";
 import { runGroupGuards } from "../features/moderation.ts";
 import { runGuardianGuards } from "../features/jsGuardian.ts";
+import { tournamentCommand } from "../features/jsTorneosBot.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -73,6 +74,8 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS){if(ctx.isGroup)brainStage(ctx.chat,"mensaje_antiguo");return;}
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
+
+    if (await tournamentCommand(ctx)) return;
 
     // Los participantes pueden conversar con la IA, pero nunca ejecutar compras ni comandos privados.
     if (!isJSLeader(ctx)) {
