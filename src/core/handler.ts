@@ -22,6 +22,7 @@ import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
 import { isJSLeader, isLeaderIdentityQuestion, leaderIdentityReply } from "../features/ai/leaderIdentity.ts";
+import { jsDefenseReply } from "../features/jsDefense.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { findCommand, splitCommand, type Command } from "./command.ts";
@@ -63,13 +64,16 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await runGuardianGuards(ctx)) return;
     if (await runGroupGuards(ctx)) return;
 
-    // Solo el WhatsApp verificado de JS puede usar comandos o conversar con el bot.
-    // Las defensas automáticas anteriores siguen funcionando para el grupo.
-    // Silenciar en lugar de contestar "solo dueño" a los demás.
-    if (!isJSLeader(ctx)) return;
-
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
+
+    // Solo JS puede usar comandos y la IA. A otros solo se les puede responder
+    // con una única broma defensiva por una provocación explícita, sin comandos.
+    if (!isJSLeader(ctx)) {
+      const comeback = jsDefenseReply(ctx);
+      if (comeback) await ctx.reply(comeback);
+      return;
+    }
 
     if (await runAutomations(ctx, Boolean(command))) return;
 
