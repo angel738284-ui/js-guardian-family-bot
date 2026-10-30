@@ -1,6 +1,6 @@
 import { command } from "../core/command.ts";
 import { isJSLeader } from "../features/ai/leaderIdentity.ts";
-import { brainSettings,setBrainSettings } from "../features/brainGuard.ts";
+import { brainSettings,setBrainSettings,getBrainDiagnostics } from "../features/brainGuard.ts";
 import { classifyGroupMessage, isIsolatedRudeWord } from "../features/brainLogic.ts";
 import { isBotAdmin } from "../features/groups.ts";
 import { aiBrainConfigured, classifyWithKie } from "../features/brainAi.ts";
@@ -14,6 +14,23 @@ command({
     if(!isJSLeader(ctx))return;
     const args=ctx.args.trim().toLowerCase();
     const s=await brainSettings(ctx.chat);
+    if(args==="diagnostico" || args==="diagnóstico") {
+      const group=await ctx.group().catch(()=>null);
+      const stats=getBrainDiagnostics(ctx.chat);
+      const categories:Record<string,string>={recibido:"Recibidos",analizado:"Analizados",recordatorio:"Recordatorios",intervencion:"Intervenciones",advertencia:"Advertencias",mensaje_borrado:"Borrados",esperando_reincidencia:"Esperando reincidencia",pausa_anti_spam:"Pausa antispam",sin_infraccion:"Sin infracción",sin_metadatos:"Sin datos del grupo",exento:"Usuarios exentos",desactivado:"Moderación apagada",error:"Errores",proteccion_previa:"Bloqueados por protección previa",filtro_previo:"Bloqueados por filtros",captcha_previo:"Bloqueados por captcha",mensaje_antiguo:"Mensajes antiguos"};
+      const counts=stats?Object.entries(stats.stages).sort((a,b)=>b[1]-a[1]).slice(0,15)
+        .map(([name,n])=>"• "+(categories[name]??name)+": "+n).join("\n"):"Todavía sin mensajes desde el último reinicio.";
+      const minutes=stats?Math.round((Date.now()-stats.lastAt)/60_000):null;
+      await ctx.reply("🧠 *DIAGNÓSTICO JS GUARDIAN*\n"+
+        "Moderación: *"+(s.enabled?"ACTIVA":"APAGADA")+"* · "+s.mode+"\n"+
+        "IA: "+(s.ai?"ACTIVA":"APAGADA")+(aiBrainConfigured()?" (clave disponible)":" (sin clave)")+"\n"+
+        "Borrado: "+(s.autoDelete?"ACTIVO":"APAGADO")+"\n"+
+        "Bot administrador: "+(group?(isBotAdmin(group)?"SÍ":"NO"):"NO SE PUDO CONSULTAR")+"\n"+
+        "Último mensaje registrado: "+(minutes===null?"sin datos":minutes+" min")+"\n\n"+
+        "*Actividad desde el último reinicio*\n"+counts+"\n\n"+
+        "No muestra ni almacena el contenido de mensajes.");
+      return;
+    }
     if(args.startsWith("pruebaia ")) {
       const sample=ctx.args.trim().slice(9,250);
       if(!sample) {await ctx.reply("Usá /cerebro pruebaia TEXTO");return;}
@@ -50,7 +67,7 @@ command({
       const status=!finding?"Sin infracción explícita":
         finding==="attack"?"Insulto dirigido":finding==="threat"?"Amenaza":
         isolated?"Grosería aislada: recordatorio inmediato, sin sanción":
-        "Lenguaje fuerte: intervenir si se repite";
+        "Lenguaje fuerte: interviene en frases agresivas, o al repetirse";
       await ctx.reply("🧠 *Prueba del cerebro (no sanciona)*\n"+
         "Estado del grupo: "+(s.enabled?"ACTIVO":"APAGADO")+" · "+s.mode+"\n"+
       "IA: "+(s.ai?"ACTIVA":"APAGADA")+" · Borrado: "+(s.autoDelete?"SÍ":"NO")+"\n"+
@@ -87,7 +104,8 @@ command({
       "*/cerebro ia on|off* — Análisis con Kie (consume créditos)\n"+
       "*/cerebro borrar on|off* — Eliminar mensajes muy graves\n"+
       "*/cerebro prueba TEXTO* — Prueba de reglas sin sancionar\n"+
-      "*/cerebro pruebaia TEXTO* — Prueba con IA sin sancionar\n\n"+
+      "*/cerebro pruebaia TEXTO* — Prueba con IA sin sancionar\n"+
+      "*/cerebro diagnostico* — Estado y actividad real\n\n"+
       "Analiza únicamente texto. IA y borrado pueden tardar unos segundos y no garantizan detectar todos los casos."
     );
   },

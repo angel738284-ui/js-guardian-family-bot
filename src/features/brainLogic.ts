@@ -49,3 +49,13 @@ export function classifyContextualReply(raw:string,hasRecipient:boolean):BrainFi
   const expression=new RegExp("^(?:(?:que|re|alto|alta|tremendo|tremenda|sos|sos un|sos una)\\s+){0,2}"+insult+"(?:\\s+sos)?$","i");
   return expression.test(text)?"attack":null;
 }
+
+/** Frases agresivas completas: ameritan intervención inmediata, pero no
+ * borrado ni expulsión sin analizar el destinatario y la gravedad real. */
+export function isAggressiveRudePhrase(raw:string):boolean {
+  if(!raw || raw.length>280 || /^\s*[#/.]/.test(raw))return false;
+  const text=normalize(raw);
+  if(/\b(?:no digas|no le digas|no insultes|me dijo|le dijo|lo que dijo|lo que dice|la palabra|es un insulto|no es un insulto)\b/.test(text))return false;
+  return /\b(?:put[oa]|pendej[oa]|pelotud[oa]|forr[oa]|tarad[oa]|idiota|imbecil)\s+(?:de\s+)?(?:mierda|porqueria)\b/.test(text)
+    || /\b(?:hij[oa] de (?:la )?puta|cerra el orto|anda a cagar|chupame un huevo)\b/.test(text);
+}

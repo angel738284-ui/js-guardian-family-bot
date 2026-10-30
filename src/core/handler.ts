@@ -23,7 +23,7 @@ import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
 import { isJSLeader, isLeaderIdentityQuestion, leaderIdentityReply } from "../features/ai/leaderIdentity.ts";
 import { jsDefenseReply } from "../features/jsDefense.ts";
-import { runBrainGuard } from "../features/brainGuard.ts";
+import { runBrainGuard, brainStage } from "../features/brainGuard.ts";
 import { canUseSimpleAdminCommand } from "../features/adminSimpleCommands.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
@@ -61,13 +61,16 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     recordIncoming(event, message, ctx.sender);
     cacheMessage({ chat: ctx.chat, id: event.key.id, sender: ctx.sender, senderName: ctx.pushName, at: Date.now(), content: message.content });
 
-    if (ctx.isGroup && !ctx.fromMe) countGroupMessage(ctx.chat, ctx.senderIds[0] ?? ctx.sender, ctx.pushName);
-    if (await checkCaptcha(ctx)) return;
-    if (await runGuardianGuards(ctx)) return;
-    if (await runGroupGuards(ctx)) return;
+    if (ctx.isGroup && !ctx.fromMe) {
+      countGroupMessage(ctx.chat, ctx.senderIds[0] ?? ctx.sender, ctx.pushName);
+      brainStage(ctx.chat,"recibido");
+    }
+    if (await checkCaptcha(ctx)) {if(ctx.isGroup)brainStage(ctx.chat,"captcha_previo");return;}
+    if (await runGuardianGuards(ctx)) {if(ctx.isGroup)brainStage(ctx.chat,"proteccion_previa");return;}
+    if (await runGroupGuards(ctx)) {if(ctx.isGroup)brainStage(ctx.chat,"filtro_previo");return;}
 
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
-    if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
+    if (ageSeconds > MAX_COMMAND_AGE_SECONDS){if(ctx.isGroup)brainStage(ctx.chat,"mensaje_antiguo");return;}
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
