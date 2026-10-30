@@ -1,4 +1,5 @@
 import { command } from "../core/command.ts";
+import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { getLogGroupJid } from "../features/logGroup.ts";
 import { getGroup, isBotAdmin } from "../features/groups.ts";
@@ -8,6 +9,18 @@ import { guardianBan, guardianLog, guardianUnban, guardianWarn } from "../featur
 import {
   getGuardianConfig, guardianWarnings, recentGuardianAudit, setGuardianConfig, listGuardianStateScope, setBannedAliases
 } from "../features/jsGuardianStore.ts";
+
+command({
+  name: "privados", description: "Activar o desactivar respuestas por privado", category: "owner",
+  permission: "owner", usage: "off|on|estado", audit: true,
+  run: async (ctx) => {
+    const action=ctx.args.trim().toLowerCase();
+    if(action==="off"){await kv.set("js_private_replies_disabled",true);await ctx.replyOk("🔕 No responderé mensajes privados de otras personas. Los códigos privados de JS Torneos se siguen enviando.");return;}
+    if(action==="on"){await kv.set("js_private_replies_disabled",false);await ctx.replyOk("🔔 Volví a responder mensajes privados.");return;}
+    if(action===""||action==="estado"){const off=await kv.get<boolean>("js_private_replies_disabled");await ctx.reply("📩 Respuestas privadas: "+(off?"DESACTIVADAS":"ACTIVADAS")+"\nUsá /privados off o /privados on.");return;}
+    await ctx.replyFail("Usá /privados off, /privados on o /privados estado.");
+  },
+});
 
 const pendingUnbans = new Map<string,{expires:number;aliases:string[][]}>();
 

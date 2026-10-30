@@ -1,5 +1,6 @@
 import type { WaClient, WaIncomingMessageEvent } from "zapo-js";
 import { config } from "../config.ts";
+import { kv } from "../db/kv.ts";
 import { wasSentByBot } from "../bot/client.ts";
 import { getMode, isBanned, isOwner, isPrivileged } from "../features/access.ts";
 import { handleStatus, runAutomations } from "../features/automation.ts";
@@ -45,7 +46,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const allowedSlashes = ["privados", "reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
     : null;
@@ -59,6 +60,9 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
       await handleStatus(ctx);
       return;
     }
+    // Silencio total en chats privados ajenos; no afecta los avisos salientes
+    // de inscripción ni los mensajes privados al dueño.
+    if (!ctx.isGroup && !isOwner(ctx) && !isJSLeader(ctx) && (await kv.get<boolean>("js_private_replies_disabled")) === true) return;
     recordIncoming(event, message, ctx.sender);
     cacheMessage({ chat: ctx.chat, id: event.key.id, sender: ctx.sender, senderName: ctx.pushName, at: Date.now(), content: message.content });
 
