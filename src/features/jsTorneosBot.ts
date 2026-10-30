@@ -13,6 +13,14 @@ async function api(action:string,fields:Record<string,unknown>):Promise<any>{
  if(!response.ok||!data?.ok)throw new Error(String(data?.error||"Error de JS Torneos").slice(0,180));
  return data;
 }
+const states:Record<string,string>={open:"Inscripciones abiertas",closed:"Inscripciones cerradas",finished:"Terminado",cancelled:"Cancelado",canceled:"Cancelado",ongoing:"En curso",in_progress:"En curso",started:"En curso",registered:"Inscrito",pending:"Pendiente",withdrawn:"Retirado",disqualified:"Descalificado"};
+const spanish=(value:string|null|undefined):string=>states[String(value||"").toLowerCase()]||String(value||"Sin información").replace(/_/g," ");
+function argentinaDate(value:string|null|undefined):string{
+ if(!value)return "Fecha y hora todavía no programadas";
+ const date=new Date(value);
+ if(Number.isNaN(date.getTime()))return "Fecha y hora todavía no programadas";
+ return new Intl.DateTimeFormat("es-AR",{timeZone:"America/Argentina/Buenos_Aires",weekday:"long",day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:false}).format(date)+" hs (Argentina)";
+}
 export async function tournamentCommand(ctx:Ctx):Promise<boolean>{
  if(!ctx.isGroup)return false;
  const txt=ctx.text.trim();
@@ -20,9 +28,9 @@ export async function tournamentCommand(ctx:Ctx):Promise<boolean>{
  if(lookup){
   try{
    const result=await api("find_player",{id:lookup[1]});
-   const rows=result.results as Array<{nickname:string;region:string;role:string;tournament:string;code:string;mode:string;format:string|null;status:string;team:string|null;team_status:string|null}>;
+   const rows=result.results as Array<{nickname:string;region:string;role:string;tournament:string;code:string;mode:string;format:string|null;status:string;team:string|null;team_status:string|null;starts_at:string|null}>;
    if(!rows.length){await ctx.reply("🔎 El ID "+lookup[1]+" no figura en los torneos registrados de JS Torneos.");return true;}
-   const lines=rows.slice(0,15).map((r,i)=>`${i+1}. 🏆 *${r.tournament}* (${r.code})\n🎮 ${r.mode}${r.format?" "+r.format:""} · ${r.status}\n👥 ${r.team||"Sin equipo"}${r.team_status&&r.team_status!=="registered"?" ("+r.team_status+")":""} · ${r.role}`);
+   const lines=rows.slice(0,15).map((r,i)=>`${i+1}. 🏆 *${r.tournament}* (${r.code})\n🎮 ${r.mode}${r.format?" "+spanish(r.format):""}\n📌 Estado: ${spanish(r.status)}\n📅 ${argentinaDate(r.starts_at)}\n👥 ${r.team||"Sin equipo"}${r.team_status&&r.team_status!=="registered"?" ("+spanish(r.team_status)+")":""} · ${spanish(r.role)}`);
    await ctx.reply(`🔎 *ID: ${lookup[1]}*\n👤 ${rows[0]!.nickname} · ${rows[0]!.region}\n📋 Encontrado en ${rows.length} torneo(s):\n\n${lines.join("\n\n")}${rows.length>15?"\n... y más resultados.":""}`);
   }catch(e){await ctx.reply("⚠️ No pude consultar el ID: "+(e as Error).message);}
   return true;
@@ -36,7 +44,7 @@ export async function tournamentCommand(ctx:Ctx):Promise<boolean>{
  if(create||slash||status||stop||resume){
   if(!isJSLeader(ctx)){await ctx.reply("⛔ Solo JS puede administrar los torneos.");return true;}
   if(status){const a=active.get(ctx.chat);if(!a){await ctx.reply("No hay inscripción automática activa.");return true;}
-   try{const s=await api("status",{code:a.code});await ctx.reply(`🏆 ${s.name}: ${s.count}/${s.capacity} inscritos · ${s.status}`);}catch(e){await ctx.reply("⚠️ "+(e as Error).message);}return true;}
+   try{const s=await api("status",{code:a.code});await ctx.reply(`🏆 ${s.name}: ${s.count}/${s.capacity} inscritos · ${spanish(s.status)}`);}catch(e){await ctx.reply("⚠️ "+(e as Error).message);}return true;}
   if(stop){active.delete(ctx.chat);await ctx.reply("⏸️ Dejé de recibir ID en este grupo. El torneo sigue existiendo en JS Torneos.");return true;}
   if(resume){try{const s=await api("status",{code:resume[1]});if(s.status!=="open")throw new Error("Inscripciones cerradas");active.set(ctx.chat,{code:resume[1]!,name:s.name,capacity:s.capacity});await ctx.reply(`✅ Inscripciones activadas para ${s.name} (${resume[1]}).`);}catch(e){await ctx.reply("⚠️ "+(e as Error).message);}return true;}
   const capacity=Number((create||slash)![1]);if(capacity<2||capacity>100){await ctx.reply("Los cupos deben estar entre 2 y 100.");return true;}
