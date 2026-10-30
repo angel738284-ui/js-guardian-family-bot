@@ -10,13 +10,13 @@ import { isJSLeader } from "../features/ai/leaderIdentity.ts";
 async function guard(ctx:Ctx):Promise<boolean> {
   if (!isJSLeader(ctx)) return false;
   if (!hasEpinbyKey()) {
-    await ctx.reply("🔐 Epinby todavía no está vinculado. Regenerá las claves expuestas y guardá la nueva como EPINBY_API_KEY en Render.");
+    await ctx.reply(ctx.isGroup ? "⚠️ El sistema de recargas no está disponible ahora." : "🔐 Epinby todavía no está vinculado. Configurá EPINBY_API_KEY en Render.");
     return false;
   }
   return true;
 }
 async function onError(ctx:Ctx,error:unknown):Promise<void> {
-  await ctx.reply("⚠️ "+(error instanceof Error?error.message:"Falló la consulta a Epinby."));
+  await ctx.reply(ctx.isGroup ? "⚠️ No se pudo procesar la operación. Revisá los detalles por privado con JS Guardian." : "⚠️ "+(error instanceof Error?error.message:"Falló la consulta a Epinby."));
 }
 
 command({
@@ -32,7 +32,7 @@ command({
     }
     try {
       const draft=await prepareEpinOrder(id,Number(quantity),ctx.chat);
-      await ctx.reply(formatDraft(draft));
+      await ctx.reply(formatDraft(draft,ctx.isGroup));
     } catch(error) { await onError(ctx,error); }
   },
 });
@@ -48,7 +48,7 @@ command({
     }
     try {
       const order=await confirmEpinOrder(ctx.chat);
-      await ctx.reply("✅ Pedido recibido por Epinby.\n"+formatEpinStatus(order));
+      await ctx.reply((ctx.isGroup ? "✅ Recarga solicitada.\n" : "✅ Pedido recibido por Epinby.\n")+formatEpinStatus(order,ctx.isGroup));
     } catch(error) { await onError(ctx,error); }
   },
 });
@@ -75,16 +75,16 @@ command({
         return;
       }
       if (draft && draft.state!=="ready") {
-        await ctx.reply("⚠️ Hay una compra de estado *"+draft.state+"*. No vuelvas a enviarla. Revisá el historial de Epinby manualmente, o hablá con soporte.");
+        await ctx.reply(ctx.isGroup ? "⚠️ Hay un pedido sin confirmar. No hagas otra recarga; consultá la situación por privado." : "⚠️ Hay una compra de estado *"+draft.state+"*. No vuelvas a enviarla. Revisá el historial de Epinby manualmente, o hablá con soporte.");
         return;
       }
       if (draft && draft.state==="ready") {
-        await ctx.reply(formatDraft(draft));
+        await ctx.reply(formatDraft(draft,ctx.isGroup));
         return;
       }
       const last=await getLastEpinOrder();
       if (!last) { await ctx.reply("Todavía no hay pedidos registrados en JS Guardian."); return; }
-      await ctx.reply(formatEpinStatus(await refreshEpinOrder()));
+      await ctx.reply(formatEpinStatus(await refreshEpinOrder(),ctx.isGroup));
     } catch(error) { await onError(ctx,error); }
   },
 });
@@ -108,6 +108,7 @@ command({
   description:"Paquetes Free Fire LATAM disponibles y precio mayorista",
   run:async(ctx)=>{
     if (!await guard(ctx)) return;
+    if (ctx.isGroup) { await ctx.reply("🔒 El catálogo mayorista solo se consulta por privado."); return; }
     try {
       const items=await epinLatamProducts();
       await ctx.reply("💎 *Epinby · Free Fire LATAM*\n"+

@@ -21,18 +21,31 @@ export interface LastOrder {
   createdAt:number;
 }
 const money=(v:number)=>v.toFixed(4)+" USD";
-export const formatDraft=(d:Draft)=>
-  "💎 *RECARGA PREPARADA · EPINBY*\n"+
-  "👤 "+d.nickname+"\n"+
-  "🆔 "+d.playerId+"\n"+
-  "🌎 Región: "+(d.region||"No informada")+"\n"+
-  "📦 "+d.productName+"\n"+
-  "💰 *Costo proveedor:* "+money(d.amountUsd)+"\n"+
-  "🧾 Producto #"+d.productId+"\n\n"+
-  "⚠️ *Todavía NO se compró nada.*\n"+
-  "Para gastar tu saldo: */confirmarcarga*\n"+
-  "Para anular: */cancelarcarga*\n"+
-  "La autorización vence en cinco minutos.";
+export function formatDraft(d:Draft, inGroup=false):string {
+  if(inGroup) return [
+    "💎 *RECARGAS JS · PEDIDO PREPARADO*",
+    "👤 "+d.nickname,
+    "🆔 "+d.playerId,
+    "🌎 Región: "+(d.region||"No informada"),
+    "📦 "+d.pack+" diamantes",
+    "",
+    "⚠️ *Todavía NO se realizó la recarga.*",
+    "✅ Para comprar: */confirmarcarga*",
+    "❌ Para cancelar: */cancelarcarga*",
+    "⏱️ Confirmación válida durante cinco minutos.",
+  ].join("\n");
+  return "💎 *RECARGA PREPARADA · EPINBY*\n"+
+    "👤 "+d.nickname+"\n"+
+    "🆔 "+d.playerId+"\n"+
+    "🌎 Región: "+(d.region||"No informada")+"\n"+
+    "📦 "+d.productName+"\n"+
+    "💰 *Costo proveedor:* "+money(d.amountUsd)+"\n"+
+    "🧾 Producto #"+d.productId+"\n\n"+
+    "⚠️ *Todavía NO se compró nada.*\n"+
+    "Para gastar tu saldo: */confirmarcarga*\n"+
+    "Para anular: */cancelarcarga*\n"+
+    "La autorización vence en cinco minutos.";
+}
 
 export const getEpinDraft=()=>kv.get<Draft>(DRAFT_KEY);
 export const getLastEpinOrder=()=>kv.get<LastOrder>(LAST_KEY);
@@ -131,10 +144,17 @@ export async function refreshEpinOrder():Promise<LastOrder> {
   await kv.set(LAST_KEY,last);
   return last;
 }
-export function formatEpinStatus(o:LastOrder):string {
+export function formatEpinStatus(o:LastOrder,inGroup=false):string {
   const status=o.status.toUpperCase();
   const label=status==="COMPLETED"?"✅ ENTREGADA":
     status==="FAILED"||status==="CANCELED"?"❌ FALLIDA / CANCELADA":"⏳ "+status;
+  const publicLabel=status==="COMPLETED"?"✅ ENTREGADA":
+    status==="FAILED"||status==="CANCELED"?"❌ FALLIDA / CANCELADA":"⏳ EN PROCESO";
+  if(inGroup) return "💎 *RECARGAS JS · ESTADO DEL PEDIDO*\n"+
+    "🆔 "+o.playerId+"\n📦 "+o.pack+" diamantes"+
+    "\nEstado: *"+publicLabel+"*"+
+    (status==="COMPLETED"?"\n✅ ¡Recarga completada!":
+      "\nℹ️ Consultá luego con /estadocarga. Evitá pedidos duplicados.");
   return "💎 *PEDIDO EPINBY*\n🧾 #"+o.orderId+
     "\n🆔 "+o.playerId+"\n📦 "+o.pack+" diamantes"+
     "\n💰 Costo: "+money(o.amountUsd)+"\nEstado: *"+label+"*"+

@@ -5,7 +5,7 @@ import { isGroupAdmin } from "./groups.ts";
 // Lista POSITIVA de funciones delegables. Nunca se agregan pagos, saldo,
 // confirmaciones ni cambios críticos del bot aunque el administrador use #.
 export const ADMIN_SIMPLE_COMMANDS = [
-  "reglas","precios","warn","unwarn","warns","linksjs",
+  "reglas","precios","torneos","warn","unwarn","warns","linksjs",
 ] as const;
 const allowed = new Set<string>(ADMIN_SIMPLE_COMMANDS);
 const key = (chat:string) => "js:admins:simple_commands:"+chat;

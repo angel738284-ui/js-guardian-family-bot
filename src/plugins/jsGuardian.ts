@@ -116,9 +116,8 @@ command({
     "/links — Ver excepciones\n"+
     "/promo ID — Revisar promos del ID (solo administrador)\n"+
     "/precios o .precios — Lista de precios con y sin promo\n"+
-    "💎 *Compras Epinby (solo JS, privado o grupo):*\n"+
-    "/catalogoepin — Productos disponibles y costo USD\n"+
-    "/saldoepinby — Saldo del proveedor\n"+
+    ".torneos o /torneos — Torneos JS con inscripciones abiertas\n"+
+    "💎 *Recargas JS (solo JS):*\n"+
     "/cargar ID 110 — Preparar compra sin pagar\n"+
     "/confirmarcarga — Comprar con confirmación\n"+
     "/cancelarcarga — Descartar pedido preparado\n"+

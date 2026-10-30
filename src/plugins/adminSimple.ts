@@ -23,7 +23,7 @@ command({
     const enabled = await adminCommandsEnabled(ctx.chat);
     await ctx.reply("🛡️ *Comandos para administradores*\nEstado: *" +
       (enabled ? "ACTIVOS" : "DESACTIVADOS") + "*\n" +
-      "Permitidos: /reglas, /precios, /warn, /unwarn, /warnings y /links.\n" +
+      "Permitidos: /reglas, /precios, .torneos, /warn, /unwarn, /warnings y /links.\n" +
       "🔐 No incluye compras, saldo, confirmaciones, desbaneos ni configuración.\n" +
       "Usá */adminscomandos on* o */adminscomandos off*.");
   },
