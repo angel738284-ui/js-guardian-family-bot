@@ -79,6 +79,17 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
+    if (ctx.isGroup && dotCommand && (dotCommand.name === "off" || dotCommand.name === "on")) {
+      const groupMeta = await ctx.group();
+      const isAdmin = isJSLeader(ctx) || isOwner(ctx) || isGroupAdmin(groupMeta, ctx.senderIds);
+      if (!isAdmin) { await ctx.reply("⛔ Solo los administradores pueden abrir o cerrar el grupo."); return; }
+      if (!isBotAdmin(groupMeta)) { await ctx.reply("⚠️ Necesito ser administrador para cambiar quién puede escribir."); return; }
+      try {
+        await ctx.client.group.setSetting(ctx.chat, "announcement", dotCommand.name === "off");
+        await ctx.reply(dotCommand.name === "off" ? "🔒 *GRUPO CERRADO*\nSolo los administradores pueden enviar mensajes." : "🔓 *GRUPO ABIERTO*\nTodos los integrantes pueden enviar mensajes.");
+      } catch (error) { await ctx.reply("⚠️ No pude cambiar los permisos del grupo: "+errorMessage(error)); }
+      return;
+    }
     if (await tournamentCommand(ctx)) return;
 
     // Los participantes pueden conversar con la IA, pero nunca ejecutar compras ni comandos privados.
