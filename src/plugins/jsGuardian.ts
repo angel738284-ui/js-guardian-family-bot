@@ -115,5 +115,7 @@ command({
     "/quitarlink dominio.com\n"+
     "/links — Ver excepciones\n"+
     "/promord ID — Ver promociones RD (solo administrador)\n"+
+    "/kie — Estado de la IA GPT-6 Luna\n"+
+    "/kie on|off — Activar o apagar IA en este chat\n"+
     "/sanciones — Ver historial"),
 });

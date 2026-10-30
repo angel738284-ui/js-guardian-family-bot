@@ -20,6 +20,7 @@ import { runGroupGuards } from "../features/moderation.ts";
 import { runGuardianGuards } from "../features/jsGuardian.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
+import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { findCommand, splitCommand, type Command } from "./command.ts";
@@ -39,7 +40,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd"];
+  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "kie"];
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
     : null;
@@ -73,7 +74,9 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await runGames(ctx)) return;
     if (await runStickerCommand(client, event, ctx)) return;
     if (await runFilters(ctx)) return;
-    if (await shouldAnswer(ctx)) await answerWithAi(ctx);
+    if (kieConfigured()) {
+      if (await shouldAnswerWithKie(ctx)) await answerWithKie(ctx);
+    } else if (await shouldAnswer(ctx)) await answerWithAi(ctx);
   } catch (error) {
     await reportCrash(ctx, error);
   }
