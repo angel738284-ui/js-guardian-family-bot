@@ -74,13 +74,16 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
-    // Solo JS puede usar comandos y la IA. A otros solo se les puede responder
-    // con una única broma defensiva por una provocación explícita, sin comandos.
+    // Los participantes pueden conversar con la IA, pero nunca ejecutar compras ni comandos privados.
     if (!isJSLeader(ctx)) {
-      // Acceso opcional por grupo solo a comandos delegables y administradores reales.
       const definition = command ? findCommand(command.name) : undefined;
       if (definition && await canUseSimpleAdminCommand(ctx,definition.name)) {
         await runCommand(ctx,definition,true);
+        return;
+      }
+      if (command) return;
+      if (kieConfigured() && await shouldAnswerWithKie(ctx)) {
+        await answerWithKie(ctx);
         return;
       }
       const comeback = jsDefenseReply(ctx);
