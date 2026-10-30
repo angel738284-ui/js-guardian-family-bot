@@ -1,6 +1,7 @@
 import type { Ctx } from "../core/context.ts";
 import { kv } from "../db/kv.ts";
-import { sendText } from "../bot/client.ts";
+import { sendText, send } from "../bot/client.ts";
+import { aiBrainConfigured, classifyWithKie, type ModerationVerdict } from "./brainAi.ts";
 import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { isPrivileged } from "./access.ts";
 import { getGroup, isBotAdmin, isGroupAdmin } from "./groups.ts";
@@ -11,7 +12,7 @@ import { logger } from "../lib/logger.ts";
 import { classifyGroupMessage, classifyContextualReply, isIsolatedRudeWord } from "./brainLogic.ts";
 
 export type BrainMode = "suave"|"firme";
-export interface BrainSettings {enabled:boolean;mode:BrainMode}
+export interface BrainSettings {enabled:boolean;mode:BrainMode;ai:boolean;autoDelete:boolean}
 interface Offenses {count:number;lastAt:number}
 const DAY=24*60*60_000;
 const USER_COOLDOWN=90_000;
@@ -22,9 +23,33 @@ const rateByGroup=new Map<string,{start:number;count:number}>();
 const settingsKey=(chat:string)=>"js:brain:settings:"+chat;
 const offensesKey=(chat:string,sender:string)=>"js:brain:offenses:"+chat+":"+sender;
 
+export function actionForBrain(
+  local:"attack"|"profanity"|"threat"|null,
+  ai:ModerationVerdict|null,
+):{kind:"attack"|"profanity"|"threat"|null;shouldDelete:boolean} {
+  if(ai && ai.confidence>=0.76){
+    if(ai.level==="severe")return {kind:"threat",shouldDelete:ai.confidence>=0.94};
+    if(ai.level==="attack")return {kind:"attack",shouldDelete:false};
+    if(ai.level==="rude")return {kind:"profanity",shouldDelete:false};
+    if(ai.level==="safe" && ai.confidence>=0.89)return {kind:null,shouldDelete:false};
+  }
+  return {kind:local,shouldDelete:false};
+}
+
+export async function deleteSevereMessage(ctx:Ctx,canDelete:boolean):Promise<boolean> {
+  if(!canDelete || !ctx.event.key?.id || ctx.event.key.fromMe)return false;
+  // Nunca borrar un mensaje viejo o cuya clave no corresponde al grupo actual.
+  if(ctx.event.key.remoteJid!==ctx.chat)return false;
+  const age=Date.now()/1000-(ctx.event.timestampSeconds??0);
+  if(age<0 || age>120)return false;
+  try {await send(ctx.chat,{type:"revoke",target:ctx.event});return true}
+  catch(err){logger.warn("No se pudo borrar mensaje grave: "+(err instanceof Error?err.message:String(err)));return false}
+}
+
 export async function brainSettings(chat:string):Promise<BrainSettings> {
   const s=await kv.get<Partial<BrainSettings>>(settingsKey(chat));
-  return {enabled:s?.enabled===true,mode:s?.mode==="suave"?"suave":"firme"};
+  return {enabled:s?.enabled===true,mode:s?.mode==="suave"?"suave":"firme",
+    ai:s?.ai!==false,autoDelete:s?.autoDelete!==false};
 }
 export async function setBrainSettings(chat:string,s:BrainSettings):Promise<void> {
   if(s.mode!=="suave"&&s.mode!=="firme")throw new Error("Modo de moderación inválido.");
@@ -55,15 +80,31 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
   const mentionedOther=ctx.message.mentions.some(id=>!ctx.senderIds.some(own=>normalizeId(own)===normalizeId(id)));
   const directed=quotedOther||mentionedOther;
   // Citar a otra persona convierte una palabra aislada como "puto" en un ataque dirigido.
-  const finding=(isIsolatedRudeWord(ctx.text) && directed)
+  const local=(isIsolatedRudeWord(ctx.text) && directed)
     ? (classifyContextualReply(ctx.text,true)??"attack")
     : (classifyGroupMessage(ctx.text) ?? classifyContextualReply(ctx.text,directed));
-  if(!finding)return false;
   try {
     const settings=await brainSettings(ctx.chat);
     if(!settings.enabled)return false;
     const metadata=await getGroup(ctx.chat).catch(()=>null);
     if(!metadata||await isPrivileged(ctx))return false;
+    const aiVerdict=settings.ai&&aiBrainConfigured()
+      ? await classifyWithKie(ctx.text,ctx.chat,{
+          isReply:directed,isMention:mentionedOther,
+          quotedText:ctx.message.quoted?.text,
+        }) : null;
+    const {kind:finding,shouldDelete}=actionForBrain(local,aiVerdict);
+    if(!finding)return false;
+    const canDelete=isBotAdmin(metadata);
+    if(settings.mode==="firme" && settings.autoDelete && shouldDelete && canDelete){
+      const removed=await deleteSevereMessage(ctx,canDelete);
+      if(removed){
+        const sender=normalizeId(ctx.sender);
+        await guardianLog({group_id:ctx.chat,action:"CEREBRO ELIMINÓ MENSAJE GRAVE",actor_id:"JS_CEREBRO",target_id:sender,details:"Infracción grave confirmada por IA (sin texto original)"});
+        await sendText(ctx.chat,"🧹 Mensaje grave eliminado. Che, acá nos tratamos con respeto.").catch(()=>{});
+        return true;
+      }
+    }
     const senderIsAdmin=isGroupAdmin(metadata,ctx.senderIds);
     const sender=normalizeId(ctx.sender);
     const now=Date.now();
