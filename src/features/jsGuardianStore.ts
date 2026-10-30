@@ -1,6 +1,6 @@
 // Persistencia separada para JS Guardian. No utiliza tablas ni permisos de JS Torneos.
-export type GuardianConfig = { antiSticker: boolean; antiLink: boolean; allowedDomains: string[] };
-const defaults: GuardianConfig = { antiSticker: true, antiLink: true, allowedDomains: [] };
+export type GuardianConfig = { antiSticker: boolean; antiLink: boolean; antiExplicitSticker?: boolean; allowedDomains: string[] };
+const defaults: GuardianConfig = { antiSticker: true, antiLink: true, antiExplicitSticker: false, allowedDomains: [] };
 const base = process.env.JS_GUARDIAN_DB_URL?.replace(/\/$/, "");
 const apiKey = process.env.JS_GUARDIAN_DB_KEY;
 const secret = process.env.JS_GUARDIAN_DB_SECRET;

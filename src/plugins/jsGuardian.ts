@@ -118,10 +118,11 @@ command({
   run:async(ctx)=>{
     const cfg=await getGuardianConfig(ctx.chat);
     const [feature, state] = ctx.args.toLowerCase().trim().split(/\s+/);
-    if ((feature !== "stickers" && feature !== "links") || (state !== "on" && state !== "off")) {
-      return ctx.reply(`🛡️ *JS Guardian*\nAntistickers: ${cfg.antiSticker ? "ACTIVO" : "APAGADO"} (máximo 2/minuto)\nAntilinks: ${cfg.antiLink ? "ACTIVO" : "APAGADO"}\nUsá /guardian stickers on|off o /guardian links on|off.`);
+    if ((feature !== "stickers" && feature !== "links" && feature !== "contenido") || (state !== "on" && state !== "off")) {
+      return ctx.reply(`🛡️ *JS Guardian*\nAntistickers: ${cfg.antiSticker ? "ACTIVO" : "APAGADO"} (máximo 2/minuto)\nAntilinks: ${cfg.antiLink ? "ACTIVO" : "APAGADO"}\nDetector explícito: ${cfg.antiExplicitSticker ? "ACTIVO" : "APAGADO"}\nUsá /guardian contenido on|off, /guardian stickers on|off o /guardian links on|off.`);
     }
     if(feature==="stickers") cfg.antiSticker=state==="on";
+    else if(feature==="contenido") cfg.antiExplicitSticker=state==="on";
     else cfg.antiLink=state==="on";
     await setGuardianConfig(ctx.chat,cfg);
     await guardianLog({group_id:ctx.chat,action:"CONFIGURACIÓN",actor_id:normalizeId(ctx.sender),details:`${feature} ${state}`});

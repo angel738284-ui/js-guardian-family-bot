@@ -11,6 +11,7 @@ import {
   setBannedAliases, updateGuardianWarnings, type GuardianAudit
 } from "./jsGuardianStore.ts";
 import { logger, errorMessage } from "../lib/logger.ts";
+import { classifySticker } from "./stickerSafety.ts";
 
 const stickerTimes = new Map<string, number[]>();
 const warnedBurstAt = new Map<string, number>();
@@ -65,6 +66,16 @@ export async function runGuardianGuards(ctx: Ctx): Promise<boolean> {
     const [config, group] = await Promise.all([getGuardianConfig(ctx.chat), getGroup(ctx.chat)]);
     if (!isBotAdmin(group)) return false;
     if (isGroupAdmin(group, ctx.senderIds) || await isPrivileged(ctx)) return false;
+    if (ctx.message.type === "sticker" && config.antiExplicitSticker) {
+      const verdict = await classifySticker(ctx);
+      if (verdict && (verdict.category === "explicit_sex" || verdict.category === "graphic_gore") && verdict.confidence >= 0.98) {
+        await send(ctx.chat, { type: "revoke", target: ctx.event }).catch(() => {});
+        const result = await guardianBan(ctx.chat, ctx.sender, "DETECTOR_VISUAL");
+        await guardianLog({ group_id: ctx.chat, action: "STICKER EXPLÍCITO", actor_id: "DETECTOR_VISUAL", target_id: normalizeId(ctx.sender), details: verdict.category + " " + verdict.confidence });
+        await sendText(ctx.chat, result.removed ? "🚫 Sticker explícito eliminado. Usuario expulsado y bloqueado." : "🚫 Sticker explícito detectado. Usuario bloqueado; revisá los permisos de expulsión.").catch(() => {});
+        return true;
+      }
+    }
     if (ctx.message.type === "sticker" && config.antiSticker) {
       const key = `${ctx.chat}|${ctx.senderIds[0] ?? ctx.sender}`;
       const now = Date.now();
