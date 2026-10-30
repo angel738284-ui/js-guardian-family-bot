@@ -9,10 +9,6 @@ import { isJSLeader } from "../features/ai/leaderIdentity.ts";
 
 async function guard(ctx:Ctx):Promise<boolean> {
   if (!isJSLeader(ctx)) return false;
-  if (ctx.isGroup) {
-    await ctx.reply("🔒 Por seguridad, las compras y consultas de saldo se hacen por privado con JS Guardian.");
-    return false;
-  }
   if (!hasEpinbyKey()) {
     await ctx.reply("🔐 Epinby todavía no está vinculado. Regenerá las claves expuestas y guardá la nueva como EPINBY_API_KEY en Render.");
     return false;
@@ -25,7 +21,7 @@ async function onError(ctx:Ctx,error:unknown):Promise<void> {
 
 command({
   name:"cargar",category:"owner",permission:"owner",
-  description:"Preparar compra de diamantes Free Fire LATAM (no cobra todavía)",
+  description:"Preparar compra de diamantes Free Fire LATAM sin cobrar todavía",
   usage:"<ID Free Fire> <110|341|572|1166|2398|6160>",
   run:async(ctx)=>{
     if (!await guard(ctx)) return;
@@ -35,7 +31,7 @@ command({
       return;
     }
     try {
-      const draft=await prepareEpinOrder(id,Number(quantity));
+      const draft=await prepareEpinOrder(id,Number(quantity),ctx.chat);
       await ctx.reply(formatDraft(draft));
     } catch(error) { await onError(ctx,error); }
   },
@@ -51,7 +47,7 @@ command({
       return;
     }
     try {
-      const order=await confirmEpinOrder();
+      const order=await confirmEpinOrder(ctx.chat);
       await ctx.reply("✅ Pedido recibido por Epinby.\n"+formatEpinStatus(order));
     } catch(error) { await onError(ctx,error); }
   },
@@ -62,7 +58,7 @@ command({
   description:"Descartar una orden de recarga sin confirmar",
   run:async(ctx)=>{
     if (!await guard(ctx)) return;
-    try { await cancelEpinDraft(); await ctx.reply("🧹 Recarga preparada cancelada. No se gastó saldo."); }
+    try { await cancelEpinDraft(ctx.chat); await ctx.reply("🧹 Recarga preparada cancelada. No se gastó saldo."); }
     catch(error) { await onError(ctx,error); }
   },
 });
@@ -74,6 +70,10 @@ command({
     if (!await guard(ctx)) return;
     try {
       const draft=await getEpinDraft();
+      if (draft && draft.chat!==ctx.chat) {
+        await ctx.reply("🔒 Hay un pedido pendiente en otro chat; consultalo ahí.");
+        return;
+      }
       if (draft && draft.state!=="ready") {
         await ctx.reply("⚠️ Hay una compra de estado *"+draft.state+"*. No vuelvas a enviarla. Revisá el historial de Epinby manualmente, o hablá con soporte.");
         return;
@@ -94,6 +94,7 @@ command({
   description:"Consultar saldo del proveedor Epinby en USD",
   run:async(ctx)=>{
     if (!await guard(ctx)) return;
+    if (ctx.isGroup) { await ctx.reply("🔒 Para ver tu saldo, escribime /saldoepinby por privado."); return; }
     try {
       const account=await epinAccount();
       await ctx.reply("💵 *Saldo Epinby:* "+account.balance+" "+account.currency+

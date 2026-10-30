@@ -11,7 +11,7 @@ const LAST_KEY="epinby:purchase:last";
 const DRAFT_TTL=5*60_000;
 
 export interface Draft {
-  state:"ready"|"submitting"|"uncertain";
+  state:"ready"|"submitting"|"uncertain";chat:string;
   playerId:string;pack:number;productId:number;productName:string;
   amountUsd:number;currency:string;nickname:string;region:string;
   idempotencyKey:string;createdAt:number;
@@ -37,11 +37,13 @@ export const formatDraft=(d:Draft)=>
 export const getEpinDraft=()=>kv.get<Draft>(DRAFT_KEY);
 export const getLastEpinOrder=()=>kv.get<LastOrder>(LAST_KEY);
 
-export async function prepareEpinOrder(playerId:string,pack:number):Promise<Draft> {
+export async function prepareEpinOrder(playerId:string,pack:number,chat:string):Promise<Draft> {
   if (!/^\d{6,15}$/.test(playerId)) throw new Error("ID inválido: usá entre 6 y 15 dígitos.");
   const existing=await getEpinDraft();
   if (existing && existing.state!=="ready")
     throw new Error("Existe una compra que puede estar en proceso. Revisá /estadocarga antes de empezar otra.");
+  if (existing && existing.state==="ready" && existing.chat!==chat && Date.now()-existing.createdAt<DRAFT_TTL)
+    throw new Error("Ya preparaste un pedido en otro chat. Cancelalo allí o esperá cinco minutos.");
   const products=await epinLatamProducts();
   const product=selectEpinProduct(products,pack);
   const [account,player]=await Promise.all([
@@ -54,7 +56,7 @@ export async function prepareEpinOrder(playerId:string,pack:number):Promise<Draf
   if (Number(account.balance)<usd)
     throw new Error("Saldo insuficiente en Epinby. Necesitás "+money(usd)+".");
   const draft:Draft={
-    state:"ready",playerId,pack,productId:product.id,productName:product.name,
+    state:"ready",chat,playerId,pack,productId:product.id,productName:product.name,
     amountUsd:usd,currency:"USD",
     nickname:String(player.nickname||player.player_name||"Jugador verificado").slice(0,70),
     region:String(player.region||"").slice(0,30),idempotencyKey:randomUUID(),createdAt:Date.now(),
@@ -64,13 +66,14 @@ export async function prepareEpinOrder(playerId:string,pack:number):Promise<Draf
 }
 
 let submitting=false;
-export async function confirmEpinOrder():Promise<LastOrder> {
+export async function confirmEpinOrder(chat:string):Promise<LastOrder> {
   if (submitting) throw new Error("Hay una compra en curso. No la repitas.");
   if (!purchasesEnabled()) throw new Error("Compras desactivadas por seguridad. Falta activar EPINBY_PURCHASES_ENABLED en Render.");
   submitting=true;
   try {
     const draft=await getEpinDraft();
     if (!draft) throw new Error("No hay recarga preparada. Usá /cargar ID CANTIDAD.");
+    if (draft.chat!==chat) throw new Error("Confirmá el pedido solo desde el mismo chat donde lo preparaste.");
     if (draft.state!=="ready")
       throw new Error("La operación podría haberse enviado. Consultá /estadocarga o el panel Epinby.");
     if (Date.now()-draft.createdAt>DRAFT_TTL)
@@ -112,9 +115,10 @@ export async function confirmEpinOrder():Promise<LastOrder> {
   }
 }
 
-export async function cancelEpinDraft():Promise<void> {
+export async function cancelEpinDraft(chat:string):Promise<void> {
   const draft=await getEpinDraft();
   if (!draft) throw new Error("No hay ninguna recarga pendiente.");
+  if (draft.chat!==chat) throw new Error("Cancelá el pedido desde el chat donde lo preparaste.");
   if (draft.state!=="ready")
     throw new Error("El pedido puede estar en trámite. Consultá /estadocarga; no puedo cancelarlo desde WhatsApp.");
   await kv.delete(DRAFT_KEY);

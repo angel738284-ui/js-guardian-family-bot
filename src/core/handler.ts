@@ -23,6 +23,7 @@ import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
 import { isJSLeader, isLeaderIdentityQuestion, leaderIdentityReply } from "../features/ai/leaderIdentity.ts";
 import { jsDefenseReply } from "../features/jsDefense.ts";
+import { canUseSimpleAdminCommand } from "../features/adminSimpleCommands.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
 import { findCommand, splitCommand, type Command } from "./command.ts";
@@ -42,7 +43,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
     : null;
@@ -70,6 +71,12 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Solo JS puede usar comandos y la IA. A otros solo se les puede responder
     // con una única broma defensiva por una provocación explícita, sin comandos.
     if (!isJSLeader(ctx)) {
+      // Acceso opcional por grupo solo a comandos delegables y administradores reales.
+      const definition = command ? findCommand(command.name) : undefined;
+      if (definition && await canUseSimpleAdminCommand(ctx,definition.name)) {
+        await runCommand(ctx,definition,true);
+        return;
+      }
       const comeback = jsDefenseReply(ctx);
       if (comeback) await ctx.reply(comeback);
       return;
@@ -114,14 +121,16 @@ async function runStickerCommand(client: WaClient, event: WaIncomingMessageEvent
   return true;
 }
 
-async function checkRules(ctx: Ctx, cmd: Command): Promise<string | null> {
+async function checkRules(ctx: Ctx, cmd: Command, delegatedAdmin = false): Promise<string | null> {
+  // Segunda verificación: nunca permitir que una ejecución delegada sortee la lista segura.
+  if (delegatedAdmin && !(await canUseSimpleAdminCommand(ctx,cmd.name))) return "";
   const privileged = await isPrivileged(ctx);
 
   if (!privileged && (await isBanned(ctx))) return "";
 
-  if (!privileged && (await getMode()) === "private" && !(await isAllowedIn(ctx.chat, cmd.name))) return "";
+  if (!privileged && !delegatedAdmin && (await getMode()) === "private" && !(await isAllowedIn(ctx.chat, cmd.name))) return "";
 
-  if (cmd.permission === "owner" && !isOwner(ctx)) return t("OWNER_ONLY");
+  if (cmd.permission === "owner" && !isOwner(ctx) && !delegatedAdmin) return t("OWNER_ONLY");
   if (cmd.permission === "sudo" && !privileged) return t("SUDO_ONLY");
 
   if (!privileged && (await isMaintenance())) return t("MAINTENANCE");
@@ -153,8 +162,8 @@ async function checkRules(ctx: Ctx, cmd: Command): Promise<string | null> {
   return null;
 }
 
-export async function runCommand(ctx: Ctx, cmd: Command): Promise<void> {
-  const problem = await checkRules(ctx, cmd);
+export async function runCommand(ctx: Ctx, cmd: Command, delegatedAdmin = false): Promise<void> {
+  const problem = await checkRules(ctx, cmd, delegatedAdmin);
   if (problem !== null) {
     if (problem) await ctx.reply(problem);
     return;
