@@ -6,7 +6,7 @@ import { logger } from "../../lib/logger.ts";
 import { PERSONALITY, personaStyle, personaTone, userMemories, type PersonaTone } from "./persona.ts";
 import { isJSLeader } from "./leaderIdentity.ts";
 import { buildLiveContext, isLiveInformationQuestion, liveQuestionKind } from "./liveContext.ts";
-import { wantsQuotedReply, quotedPrompt, quotedFallback } from "./quotedContext.ts";
+import { wantsQuotedReply, quotedPrompt } from "./quotedContext.ts";
 
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
@@ -76,7 +76,7 @@ export async function kieGenerate(
         {role:"user",content:question.slice(0,1850)},
       ],
     }),
-    signal: AbortSignal.timeout(35_000),
+    signal: AbortSignal.timeout(50_000),
   });
   const body = await response.json().catch(() => null) as KieBody | null;
   const status = Number(body?.code ?? response.status);
@@ -96,10 +96,10 @@ function limit(ctx: Ctx): string | null {
   const today = new Date(now).toISOString().slice(0,10);
   if (daily.day !== today) daily = { day:today, count:0 };
   if (daily.count >= 80) return "Alcancé el límite diario de JS Guardian. Mañana seguimos.";
-  if (active || now - lastRequest < 6000) return "Estoy ocupado. Probá en unos segundos.";
+  if (active || now - lastRequest < 2000) return "Estoy ocupado. Probá en unos segundos.";
   const who = ctx.chat + ":" + normalizeId(ctx.sender);
-  if (now - (userTimes.get(who) || 0) < 60_000)
-    return "Para cuidar los créditos, esperá un minuto antes de otra pregunta.";
+  if (now - (userTimes.get(who) || 0) < 5_000)
+    return "Para cuidar los créditos, esperá 5 segundos antes de otra pregunta.";
   const entry = hourCounts.get(ctx.chat);
   const hour = entry && now - entry.at < 3600000 ? entry : {at:now,n:0};
   if (hour.n >= 18) return "El grupo alcanzó el límite de IA por esta hora.";
@@ -122,11 +122,10 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   const turns = existing && Date.now() - existing.at < 20 * 60_000 ? existing.turns : [];
   const quote=ctx.message.quoted;
   const prompt=quotedPrompt(ctx.text,quote);
-  const quotedAnswer=quote ? quotedFallback(quote) : null;
   const live = await buildLiveContext(ctx.text, turns);
   // Incluso sin presupuesto de IA, el líder puede consultar información oficial.
   const warning = limit(ctx);
-  if (warning) { await ctx.reply(quotedAnswer ?? live?.fallback ?? warning); return; }
+  if (warning) { await ctx.reply(live?.fallback ?? warning); return; }
   active = true;
   try {
     const [tone, memories] = await Promise.all([
@@ -146,7 +145,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   } catch (e) {
     const message = e instanceof Error ? e.message : "No disponible.";
     logger.warn("Kie IA: " + message);
-    await ctx.reply(quotedAnswer ?? live?.fallback ?? ("⚠️ " + message)).catch(() => {});
+    await ctx.reply(live?.fallback ?? ("⚠️ IA: " + (message === "This operation was aborted" || /timeout|timed out|abort/i.test(message) ? "Kie tardó demasiado en responder. Probá nuevamente." : message))).catch(() => {});
   } finally {
     active = false;
   }
