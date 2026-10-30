@@ -1,6 +1,8 @@
 import { command } from "../core/command.ts";
 import { isJSLeader } from "../features/ai/leaderIdentity.ts";
 import { brainSettings,setBrainSettings } from "../features/brainGuard.ts";
+import { classifyGroupMessage, isIsolatedRudeWord } from "../features/brainLogic.ts";
+import { isBotAdmin } from "../features/groups.ts";
 
 command({
   name:"cerebro",description:"Moderación automática del grupo: lenguaje, insultos y sanciones progresivas",
@@ -10,6 +12,22 @@ command({
     if(!isJSLeader(ctx))return;
     const args=ctx.args.trim().toLowerCase();
     const s=await brainSettings(ctx.chat);
+    if(args.startsWith("prueba ")) {
+      const sample=ctx.args.trim().slice(7,150);
+      const finding=classifyGroupMessage(sample);
+      const isolated=isIsolatedRudeWord(sample);
+      const group=await ctx.group();
+      const status=!finding?"Sin infracción explícita":
+        finding==="attack"?"Insulto dirigido":finding==="threat"?"Amenaza":
+        isolated?"Grosería aislada: recordatorio inmediato, sin sanción":
+        "Lenguaje fuerte: intervenir si se repite";
+      await ctx.reply("🧠 *Prueba del cerebro (no sanciona)*\n"+
+        "Estado del grupo: "+(s.enabled?"ACTIVO":"APAGADO")+" · "+s.mode+"\n"+
+        "Bot administrador: "+(isBotAdmin(group)?"Sí":"No")+"\n"+
+        "Texto: "+sample.replace(/[\r\n*_]/g," ")+"\n"+
+        "Resultado: "+status);
+      return;
+    }
     if(args==="on"||args==="off"){
       s.enabled=args==="on";
       await setBrainSettings(ctx.chat,s);
@@ -34,7 +52,8 @@ command({
       "*/cerebro on* — Activar en este grupo\n"+
       "*/cerebro off* — Desactivar\n"+
       "*/cerebro modo suave* — Solo intervenir\n"+
-      "*/cerebro modo firme* — Sanciones graduales\n\n"+
+      "*/cerebro modo firme* — Sanciones graduales\n"+
+      "*/cerebro prueba TEXTO* — Probar sin sancionar\n\n"+
       "No analiza fotos, audios o videos por ahora."
     );
   },

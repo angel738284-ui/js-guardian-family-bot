@@ -6,7 +6,7 @@ function normalize(text:string):string {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g,"")
     .toLowerCase().replace(/[^a-z0-9@\s]/g," ").replace(/\s+/g," ").trim();
 }
-const insults="(?:pelotud[oa]s?|bolud[oa]s?|idiotas?|tarad[oa]s?|imbeciles?|inutiles?|estupid[oa]s?|basuras?|gil(?:es)?|forr[oa]s?|mierdas?)";
+const insults="(?:pelotud[oa]s?|bolud[oa]s?|pendej[oa]s?|put[oa]s?|idiotas?|tarad[oa]s?|imbeciles?|inutiles?|estupid[oa]s?|basuras?|gil(?:es)?|forr[oa]s?|mierdas?)";
 const slur=new RegExp("\\b"+insults+"\\b","i");
 const negated=new RegExp("\\b(?:no|nunca|jamas)\\s+(?:sos|eres|es)\\s+(?:(?:un|una|re|tan|alto|alta)\\s+){0,2}"+insults+"\\b","i");
 const directPatterns=[
@@ -17,7 +17,7 @@ const directPatterns=[
   /\b(?:callate (?:\w+ ){0,2}pelotudo|cerra el orto|andate a la mierda|anda a cagar|chupame un huevo)\b/,
 ];
 const threat=/\b(?:te voy a matar|te voy a pegar|te rompo la cara|te cago a pi[nñ]as|te voy a reventar)\b/;
-const profanity=/\b(?:puta madre|la concha|la puta|a la mierda|mierda|pelotudo|pelotuda|boludo|boluda|forro|forra|carajo)\b/;
+const profanity=/\b(?:puta madre|la concha|la puta|a la mierda|mierda|pelotudo|pelotuda|boludo|boluda|pendejo|pendeja|puto|puta|tarado|tarada|forro|forra|carajo)\b/;
 
 /** Excluye mensajes citados sin texto propio de acoso, comandos, URLs y negaciones obvias. */
 export function classifyGroupMessage(raw:string):BrainFinding {
@@ -36,10 +36,16 @@ export function classifyGroupMessage(raw:string):BrainFinding {
 
 /** Una palabra aislada puede ser un ataque si responde a otra persona.
  * Sin un destinatario verificable no presume acoso ni acumula sanciones. */
+/** Palabra grosera aislada: intervenir con educación, SIN contar una infracción. */
+export function isIsolatedRudeWord(raw:string):boolean {
+  const clean=normalize(raw);
+  return /^(?:pendej[oa]s?|put[oa]s?|tarad[oa]s?|idiotas?|imbeciles?|pelotud[oa]s?|forr[oa]s?)$/.test(clean);
+}
+
 export function classifyContextualReply(raw:string,hasRecipient:boolean):BrainFinding {
   if(!hasRecipient || !raw || raw.length>100 || /^\s*[#/.]/.test(raw))return null;
   const text=normalize(raw);
-  const insult="(?:tarad[oa]s?|pelotud[oa]s?|bolud[oa]s?|idiotas?|imbeciles?|inutiles?|estupid[oa]s?|forr[oa]s?|manc[oa]s?|basuras?)";
+  const insult="(?:tarad[oa]s?|pelotud[oa]s?|bolud[oa]s?|pendej[oa]s?|put[oa]s?|idiotas?|imbeciles?|inutiles?|estupid[oa]s?|forr[oa]s?|manc[oa]s?|basuras?)";
   const expression=new RegExp("^(?:(?:que|re|alto|alta|tremendo|tremenda|sos|sos un|sos una)\\s+){0,2}"+insult+"(?:\\s+sos)?$","i");
   return expression.test(text)?"attack":null;
 }

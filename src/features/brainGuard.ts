@@ -8,7 +8,7 @@ import { guardianLog, guardianWarn } from "./jsGuardian.ts";
 import { getLogGroupJid } from "./logGroup.ts";
 import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { logger } from "../lib/logger.ts";
-import { classifyGroupMessage, classifyContextualReply } from "./brainLogic.ts";
+import { classifyGroupMessage, classifyContextualReply, isIsolatedRudeWord } from "./brainLogic.ts";
 
 export type BrainMode = "suave"|"firme";
 export interface BrainSettings {enabled:boolean;mode:BrainMode}
@@ -53,7 +53,11 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
   const quotedSender=ctx.message.quoted?.sender;
   const quotedOther=Boolean(quotedSender && !ctx.senderIds.some(id=>normalizeId(id)===normalizeId(quotedSender)));
   const mentionedOther=ctx.message.mentions.some(id=>!ctx.senderIds.some(own=>normalizeId(own)===normalizeId(id)));
-  const finding=classifyGroupMessage(ctx.text) ?? classifyContextualReply(ctx.text,quotedOther||mentionedOther);
+  const directed=quotedOther||mentionedOther;
+  // Citar a otra persona convierte una palabra aislada como "puto" en un ataque dirigido.
+  const finding=(isIsolatedRudeWord(ctx.text) && directed)
+    ? (classifyContextualReply(ctx.text,true)??"attack")
+    : (classifyGroupMessage(ctx.text) ?? classifyContextualReply(ctx.text,directed));
   if(!finding)return false;
   try {
     const settings=await brainSettings(ctx.chat);
@@ -70,14 +74,15 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
       p.count++;
       profanityBySender.set(pKey,p);
       if(profanityBySender.size>1200)profanityBySender.delete(profanityBySender.keys().next().value!);
-      // Lenguaje coloquial en Argentina: 1 o 2 malas palabras NO generan intervención.
-      if(p.count<3)return false;
+      // Una grosería fuerte aislada recibe una corrección suave al instante;
+      // lenguaje coloquial dentro de una charla necesita repetición.
+      if(!isIsolatedRudeWord(ctx.text) && p.count<3)return false;
       profanityBySender.delete(pKey);
     }
     if(!canReply(ctx.chat,sender,now))return false;
     const tag=mentionTag(ctx.sender);
     if(finding==="profanity"){
-      await sendText(ctx.chat,`🧹 Che ${tag}, bajemos un cambio con las malas palabras, ¿sí? Que el grupo esté tranquilo. 😌`,[ctx.sender]);
+      await sendText(ctx.chat,`🧹 Che ${tag}, cuidemos el lenguaje, ¿sí? Acá se puede bromear sin faltar el respeto. 😌`,[ctx.sender]);
       await guardianLog({group_id:ctx.chat,action:"CEREBRO RECORDATORIO",actor_id:"JS_CEREBRO",target_id:sender,details:"Lenguaje grosero, sin sanción"});
       return true;
     }
