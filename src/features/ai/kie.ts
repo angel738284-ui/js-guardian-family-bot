@@ -28,8 +28,8 @@ function tagged(ctx: Ctx): boolean {
     || /\bjs[ -]?(?:guardian|bot[ -]?adm)\b/i.test(ctx.text);
 }
 export async function shouldAnswerWithKie(ctx: Ctx): Promise<boolean> {
-  if (!kieConfigured() || !ctx.text.trim() || ctx.fromMe || !isJSLeader(ctx)) return false;
-  if (ctx.isGroup && !tagged(ctx) && !isLiveInformationQuestion(ctx.text) && !wantsQuotedReply(ctx.text,ctx.message.quoted)) {
+  if (!kieConfigured() || !ctx.text.trim() || ctx.fromMe) return false;
+  if (ctx.isGroup && !tagged(ctx) && !(isJSLeader(ctx) && isLiveInformationQuestion(ctx.text)) && !wantsQuotedReply(ctx.text,ctx.message.quoted)) {
     // Una repregunta sobre el calendario no requiere repetir la mención del bot.
     const recent = conversationHistory.get(ctx.chat + ":" + normalizeId(ctx.sender));
     if (!recent || Date.now() - recent.at >= 20 * 60_000 || !liveQuestionKind(ctx.text, recent.turns)) return false;
