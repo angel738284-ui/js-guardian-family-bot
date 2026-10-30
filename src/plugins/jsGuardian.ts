@@ -6,7 +6,7 @@ import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { domainFromInput } from "../features/jsGuardianLogic.ts";
 import { guardianBan, guardianLog, guardianUnban, guardianWarn } from "../features/jsGuardian.ts";
 import {
-  getGuardianConfig, guardianWarnings, recentGuardianAudit, setGuardianConfig
+  getGuardianConfig, guardianWarnings, recentGuardianAudit, setGuardianConfig, listGuardianStateScope
 } from "../features/jsGuardianStore.ts";
 
 command({
@@ -27,8 +27,21 @@ command({
   name: "desbanjs", description: "Retirar al usuario de la lista negra", category: "group",
   usage: "@usuario o número", permission: "owner", adminOnly: true, audit: true,
   run: async (ctx) => {
-    const target = ctx.target() ?? (ctx.args.match(/\d{7,15}/)?.[0] ?? null);
-    if (!target) return ctx.replyFail("Usá /desban @usuario o /desban 549XXXXXXXXXX.");
+    if (ctx.args.trim().toLowerCase() === "lista") {
+      const rows = await listGuardianStateScope(`ban:${ctx.chat}`);
+      const entries = new Map<string,string[]>();
+      for (const row of rows) {
+        const aliases = Array.isArray(row.value.aliases) ? row.value.aliases.filter((x):x is string=>typeof x==="string") : [row.item];
+        const key = [...aliases].sort().join("|");
+        if (!entries.has(key)) entries.set(key,aliases);
+      }
+      const lines = [...entries.values()].slice(0,25).map((aliases,i)=>`${i+1}. ${aliases.join(" / ")}`);
+      await sendText(ctx.sender,lines.length ? `🔒 *Usuarios bloqueados (identificadores)*\n${lines.join("\n")}\n\nPara liberar uno: /desban NUMERO_O_ID` : "No hay usuarios en la lista negra de este grupo.");
+      await ctx.replyOk("Te envié la lista de bloqueados por privado.");
+      return;
+    }
+    const target = ctx.target() ?? (ctx.args.match(/\d{7,20}/)?.[0] ?? null);
+    if (!target) return ctx.replyFail("Usá /desban @usuario, /desban NUMERO o /desban lista.");
     try {
       await guardianUnban(ctx.chat, target, normalizeId(ctx.sender));
       await ctx.replyOk("✅ Usuario quitado de la lista negra (si se usó un alias distinto, desbanealo también).");
