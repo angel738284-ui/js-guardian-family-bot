@@ -6,8 +6,10 @@ import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { domainFromInput } from "../features/jsGuardianLogic.ts";
 import { guardianBan, guardianLog, guardianUnban, guardianWarn } from "../features/jsGuardian.ts";
 import {
-  getGuardianConfig, guardianWarnings, recentGuardianAudit, setGuardianConfig, listGuardianStateScope
+  getGuardianConfig, guardianWarnings, recentGuardianAudit, setGuardianConfig, listGuardianStateScope, setBannedAliases
 } from "../features/jsGuardianStore.ts";
+
+const pendingUnbans = new Map<string,{expires:number;aliases:string[][]}>();
 
 command({
   name: "banjs", description: "Banear del grupo permanentemente", category: "group",
@@ -35,9 +37,25 @@ command({
         const key = [...aliases].sort().join("|");
         if (!entries.has(key)) entries.set(key,aliases);
       }
-      const lines = [...entries.values()].slice(0,25).map((aliases,i)=>`${i+1}. ${aliases.join(" / ")}`);
-      await sendText(ctx.sender,lines.length ? `🔒 *Usuarios bloqueados (identificadores)*\n${lines.join("\n")}\n\nPara liberar uno: /desban NUMERO_O_ID` : "No hay usuarios en la lista negra de este grupo.");
+      const choices = [...entries.values()].sort((a,b)=>a[0]!.localeCompare(b[0]!)).slice(0,25);
+      const lines = choices.map((aliases,i)=>`${i+1}. ${aliases.join(" / ")}`);
+      pendingUnbans.set(ctx.chat+"|"+normalizeId(ctx.sender),{expires:Date.now()+10*60_000,aliases:choices});
+      await sendText(ctx.sender,lines.length ? `🔒 *Lista de bloqueados*\n${lines.join("\n")}\n\nElegí una opción y escribí /desban 1 (o el número de la opción) en el grupo, dentro de 10 minutos. Revisá los identificadores antes de elegir.` : "No hay usuarios en la lista negra de este grupo.");
       await ctx.replyOk("Te envié la lista de bloqueados por privado.");
+      return;
+    }
+    const selection = ctx.args.trim();
+    if (/^\d{1,2}$/.test(selection)) {
+      const key = ctx.chat+"|"+normalizeId(ctx.sender);
+      const pending = pendingUnbans.get(key);
+      const aliases = pending?.expires && pending.expires>Date.now() ? pending.aliases[Number(selection)-1] : undefined;
+      if (!aliases) return ctx.replyFail("La opción no existe o venció. Escribí /desban lista nuevamente.");
+      const current = await listGuardianStateScope(`ban:${ctx.chat}`);
+      if (!aliases.some(id=>current.some(row=>row.item===id))) return ctx.replyFail("Ese bloqueo ya no existe. Actualizá /desban lista.");
+      await setBannedAliases(ctx.chat,aliases,false);
+      pendingUnbans.delete(key);
+      await guardianLog({group_id:ctx.chat,action:"DESBAN DESDE LISTA",actor_id:normalizeId(ctx.sender),target_id:aliases.join(",")});
+      await ctx.replyOk("🔓 Bloqueo eliminado para los identificadores de la opción "+selection+". Ya podés volver a invitarlo.");
       return;
     }
     const target = ctx.target() ?? (ctx.args.match(/\d{7,20}/)?.[0] ?? null);
