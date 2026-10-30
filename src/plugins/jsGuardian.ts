@@ -109,6 +109,8 @@ command({
     "/ban @usuario — Ban permanente\n"+
     "/desban @usuario — Quitar ban\n"+
     "/guardian — Ver protecciones\n"+
+    "/cerebro on|off — Moderación activa en este grupo\n"+
+    "/cerebro modo suave|firme — Sanciones graduales\n"+
     "/guardian stickers on|off\n"+
     "/guardian links on|off\n"+
     "/permitirlink dominio.com\n"+

@@ -31,13 +31,13 @@ export async function guardianCanonicalId(group: string, target: string, aliases
     [member.jid, (member as any).phoneJid, (member as any).lidJid].some(jid => all.includes(normalizeId(jid))));
   return normalizeId(p?.jid ?? target);
 }
-export async function guardianWarn(group: string, actor: string, target: string, aliases: string[] = []): Promise<{ count: number; removed: boolean }> {
+export async function guardianWarn(group: string, actor: string, target: string, aliases: string[] = [], intro = ""): Promise<{ count: number; removed: boolean }> {
   const key = await guardianCanonicalId(group, target, aliases);
   const count = await updateGuardianWarnings(group, key, "increment");
   const label = mentionTag(target);
   await guardianLog({ group_id: group, action: "ADVERTENCIA", actor_id: actor, target_id: key, details: `${count}/${WARN_LIMIT}` });
   if (count < WARN_LIMIT) {
-    await sendText(group, `⚠️ ${label} recibió una advertencia (${count}/${WARN_LIMIT}). A la tercera será expulsado.`, [target]);
+    await sendText(group, `${intro ? intro + "\n" : ""}⚠️ ${label} recibió una advertencia (${count}/${WARN_LIMIT}). A la tercera será expulsado.`, [target]);
     return { count, removed: false };
   }
   const metadata = await getGroup(group);

@@ -23,6 +23,7 @@ import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
 import { isJSLeader, isLeaderIdentityQuestion, leaderIdentityReply } from "../features/ai/leaderIdentity.ts";
 import { jsDefenseReply } from "../features/jsDefense.ts";
+import { runBrainGuard } from "../features/brainGuard.ts";
 import { canUseSimpleAdminCommand } from "../features/adminSimpleCommands.ts";
 import { recordIncoming } from "../features/ai/history.ts";
 import { errorMessage, logger } from "../lib/logger.ts";
@@ -43,7 +44,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
   const normalCommand = splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const allowedSlashes = ["reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
     : null;
@@ -67,6 +68,8 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
 
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
+    // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
+    if (await runBrainGuard(ctx)) return;
 
     // Solo JS puede usar comandos y la IA. A otros solo se les puede responder
     // con una única broma defensiva por una provocación explícita, sin comandos.
