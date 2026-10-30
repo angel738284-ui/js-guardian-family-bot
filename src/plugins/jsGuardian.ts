@@ -117,5 +117,9 @@ command({
     "/promord ID — Ver promociones RD (solo administrador)\n"+
     "/kie — Estado de la IA GPT-6 Luna\n"+
     "/kie on|off — Activar o apagar IA en este chat\n"+
+    "/caracter 0|1|2|3 — Ajustar estilo del bot\n"+
+    "/recordame texto — Guardar tu apodo o gusto\n"+
+    "/recuerdos — Consultar tus recuerdos\n"+
+    "/olvidame — Eliminar tus recuerdos\n"+
     "/sanciones — Ver historial"),
 });
