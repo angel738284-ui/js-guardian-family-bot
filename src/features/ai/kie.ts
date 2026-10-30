@@ -1,6 +1,5 @@
 import type { Ctx } from "../../core/context.ts";
 import { botIdentity } from "../../bot/client.ts";
-import { isOwner } from "../access.ts";
 import { normalizeId } from "../../lib/jid.ts";
 import { kv } from "../../db/kv.ts";
 import { logger } from "../../lib/logger.ts";
@@ -27,8 +26,8 @@ function tagged(ctx: Ctx): boolean {
     || /\bjs[ -]?(?:guardian|bot[ -]?adm)\b/i.test(ctx.text);
 }
 export async function shouldAnswerWithKie(ctx: Ctx): Promise<boolean> {
-  if (!kieConfigured() || !ctx.text.trim() || ctx.fromMe) return false;
-  if (ctx.isGroup ? !tagged(ctx) : !isOwner(ctx)) return false;
+  if (!kieConfigured() || !ctx.text.trim() || ctx.fromMe || !isJSLeader(ctx)) return false;
+  if (ctx.isGroup && !tagged(ctx)) return false;
   return kieEnabled(ctx.chat);
 }
 

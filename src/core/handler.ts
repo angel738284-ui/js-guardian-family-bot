@@ -63,6 +63,11 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await runGuardianGuards(ctx)) return;
     if (await runGroupGuards(ctx)) return;
 
+    // Solo el WhatsApp verificado de JS puede usar comandos o conversar con el bot.
+    // Las defensas automáticas anteriores siguen funcionando para el grupo.
+    // Silenciar en lugar de contestar "solo dueño" a los demás.
+    if (!isJSLeader(ctx)) return;
+
     const ageSeconds = Date.now() / 1000 - (event.timestampSeconds ?? Date.now() / 1000);
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS) return;
 
