@@ -5,7 +5,7 @@ import { consultRdPromos, formatRdPromos, formatJsPriceLists } from "../features
 command({
   name: "promord",
   aliases: ["promosrd", "promo"],
-  description: "Verificar descuentos de Free Fire PagoStore RD por ID (solo consulta)",
+  description: "Verificar las promociones de JS Recargas por ID (solo consulta)",
   category: "tools",
   usage: "<ID Free Fire>",
   permission: "owner",
@@ -19,7 +19,7 @@ command({
       const result = await consultRdPromos(id);
       await ctx.reply(formatRdPromos(result));
     } catch (error) {
-      await ctx.reply("⚠️ " + (error instanceof Error ? error.message : "No se pudo consultar PagoStore RD."));
+      await ctx.reply("⚠️ " + (error instanceof Error ? error.message : "No se pudieron consultar las promociones."));
     }
   },
 });

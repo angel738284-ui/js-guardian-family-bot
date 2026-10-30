@@ -48,32 +48,28 @@ export function hasRdPromo(items: RdDiscountItem[], pack: number): boolean {
 export function formatRdPromos(data: RdPromoSnapshot): string {
   const formatMoney = (value: number) => "$" + new Intl.NumberFormat("es-AR").format(value);
   const lines = [
-    "🔥 *PROMOS RD · FREE FIRE*",
+    "🔥 *PROMOCIONES · JS RECARGAS*",
     `👤 ${data.nickname || "Nombre no disponible"}`,
     `🆔 ${data.userId}`,
     `🌎 Región: ${data.region || "No informada"}`,
     "",
   ];
   if (data.region && data.region.toUpperCase() !== "SAC") {
-    lines.push("⚠️ ID de otra región. Revisá si corresponde a PagoStore RD.", "");
+    lines.push("⚠️ ID de otra región. Verificá que sea compatible con las promociones.", "");
   }
   for (const pack of RD_PACKAGES) {
     const active = hasRdPromo(data.items, pack);
     const price = active ? RD_PROMO_PRICES[pack]! : RD_REGULAR_PRICES[pack]!;
-    const apiItem = data.items.find((item) => rdPackageFromItem(item) === pack);
-    const dop = typeof apiItem?.price === "number" && Number.isFinite(apiItem.price)
-      ? ` · RD$ ${apiItem.price}`
-      : "";
-    lines.push(`💎 ${pack} — ${active ? "✅ PROMO" : "❌ Sin promo"} — ${formatMoney(price)} ARS${dop}`);
+    lines.push(`💎 ${pack} — ${active ? "✅ PROMO" : "❌ Sin promo"} — ${formatMoney(price)}`);
   }
-  lines.push("", "💵 Precios de venta JS Recargas en ARS.");
+  lines.push("", "💵 Precios JS Recargas en pesos argentinos (ARS).");
   lines.push("ℹ️ Solo consulta; no realiza recargas.");
   if (data.cached) lines.push("🕒 Resultado en caché (máx. 10 minutos).");
   return lines.join("\n");
 }
 
 export async function consultRdPromos(id: string): Promise<RdPromoSnapshot> {
-  if (!/^\d{6,15}$/.test(id)) throw new Error("ID inválido. Usá /promord 11572310927.");
+  if (!/^\d{6,15}$/.test(id)) throw new Error("ID inválido. Usá /promo 11572310927.");
   const key = process.env.VOLSEVER_API_KEY?.trim();
   if (!key) throw new Error("Falta configurar VOLSEVER_API_KEY en Render → Environment.");
   const previous = cache.get(id);
@@ -98,7 +94,7 @@ export async function consultRdPromos(id: string): Promise<RdPromoSnapshot> {
     if (response.status === 401) throw new Error("Volsever rechazó la API key (401).");
     if (response.status === 402) throw new Error("Volsever requiere saldo o plan activo (402).");
     if (response.status === 403) throw new Error("La API no está habilitada para tu cuenta (403).");
-    if (response.status === 404) throw new Error("No se encontró ese ID en PagoStore RD.");
+    if (response.status === 404) throw new Error("No se encontró ese ID en la consulta de promociones.");
     if (response.status === 429) throw new Error("Se alcanzó el límite de consultas a Volsever (429).");
     if (!response.ok) throw new Error(`Volsever no respondió correctamente (HTTP ${response.status}).`);
     let raw: unknown;
