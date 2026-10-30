@@ -6,6 +6,7 @@ import { logger } from "../../lib/logger.ts";
 import { PERSONALITY, personaStyle, personaTone, userMemories, type PersonaTone } from "./persona.ts";
 import { isJSLeader } from "./leaderIdentity.ts";
 import { buildLiveContext, isLiveInformationQuestion, liveQuestionKind } from "./liveContext.ts";
+import { wantsQuotedReply, quotedPrompt, quotedFallback } from "./quotedContext.ts";
 
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
@@ -28,7 +29,7 @@ function tagged(ctx: Ctx): boolean {
 }
 export async function shouldAnswerWithKie(ctx: Ctx): Promise<boolean> {
   if (!kieConfigured() || !ctx.text.trim() || ctx.fromMe || !isJSLeader(ctx)) return false;
-  if (ctx.isGroup && !tagged(ctx) && !isLiveInformationQuestion(ctx.text)) {
+  if (ctx.isGroup && !tagged(ctx) && !isLiveInformationQuestion(ctx.text) && !wantsQuotedReply(ctx.text,ctx.message.quoted)) {
     // Una repregunta sobre el calendario no requiere repetir la mención del bot.
     const recent = conversationHistory.get(ctx.chat + ":" + normalizeId(ctx.sender));
     if (!recent || Date.now() - recent.at >= 20 * 60_000 || !liveQuestionKind(ctx.text, recent.turns)) return false;
@@ -72,7 +73,7 @@ export async function kieGenerate(
       input:[
         {role:"system",content:instructions},
         ...turns.slice(-6).map(t => ({role:t.role,content:t.content.slice(0,800)})),
-        {role:"user",content:question.slice(0,1100)},
+        {role:"user",content:question.slice(0,1850)},
       ],
     }),
     signal: AbortSignal.timeout(35_000),
@@ -119,21 +120,24 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   const historyKey = ctx.chat + ":" + user;
   const existing = conversationHistory.get(historyKey);
   const turns = existing && Date.now() - existing.at < 20 * 60_000 ? existing.turns : [];
+  const quote=ctx.message.quoted;
+  const prompt=quotedPrompt(ctx.text,quote);
+  const quotedAnswer=quote ? quotedFallback(quote) : null;
   const live = await buildLiveContext(ctx.text, turns);
   // Incluso sin presupuesto de IA, el líder puede consultar información oficial.
   const warning = limit(ctx);
-  if (warning) { await ctx.reply(live?.fallback ?? warning); return; }
+  if (warning) { await ctx.reply(quotedAnswer ?? live?.fallback ?? warning); return; }
   active = true;
   try {
     const [tone, memories] = await Promise.all([
       personaTone(ctx.chat), userMemories(ctx.chat, user)
     ]);
     const reply = await kieGenerate(
-      ctx.text, ctx.pushName, tone, memories, turns, isJSLeader(ctx), live?.facts ?? "",
+      prompt, ctx.pushName, tone, memories, quote ? [] : turns, isJSLeader(ctx), live?.facts ?? "",
     );
     conversationHistory.set(historyKey, {at:Date.now(),turns:[
       ...turns,
-      {role:"user" as const,content:ctx.text.slice(0,1100)},
+      {role:"user" as const,content:ctx.text.slice(0,700)+(quote?.text ? " [Mensaje citado: "+quote.text.slice(0,350)+"]" : "")},
       {role:"assistant" as const,content:reply},
     ].slice(-6)});
     if (conversationHistory.size > 150)
@@ -142,7 +146,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   } catch (e) {
     const message = e instanceof Error ? e.message : "No disponible.";
     logger.warn("Kie IA: " + message);
-    await ctx.reply(live?.fallback ?? ("⚠️ " + message)).catch(() => {});
+    await ctx.reply(quotedAnswer ?? live?.fallback ?? ("⚠️ " + message)).catch(() => {});
   } finally {
     active = false;
   }
