@@ -16,6 +16,18 @@ async function api(action:string,fields:Record<string,unknown>):Promise<any>{
 export async function tournamentCommand(ctx:Ctx):Promise<boolean>{
  if(!ctx.isGroup)return false;
  const txt=ctx.text.trim();
+ const lookup=txt.match(/^\/(?:verificarid|jugadortorneo|buscartorneo)\s+(\d{5,16})\s*$/i);
+ if(lookup){
+  try{
+   const result=await api("find_player",{id:lookup[1]});
+   const rows=result.results as Array<{nickname:string;region:string;role:string;tournament:string;code:string;mode:string;format:string|null;status:string;team:string|null;team_status:string|null}>;
+   if(!rows.length){await ctx.reply("🔎 El ID "+lookup[1]+" no figura en los torneos registrados de JS Torneos.");return true;}
+   const lines=rows.slice(0,15).map((r,i)=>`${i+1}. 🏆 *${r.tournament}* (${r.code})\n🎮 ${r.mode}${r.format?" "+r.format:""} · ${r.status}\n👥 ${r.team||"Sin equipo"}${r.team_status&&r.team_status!=="registered"?" ("+r.team_status+")":""} · ${r.role}`);
+   await ctx.reply(`🔎 *ID: ${lookup[1]}*\n👤 ${rows[0]!.nickname} · ${rows[0]!.region}\n📋 Encontrado en ${rows.length} torneo(s):\n\n${lines.join("\n\n")}${rows.length>15?"\n... y más resultados.":""}`);
+  }catch(e){await ctx.reply("⚠️ No pude consultar el ID: "+(e as Error).message);}
+  return true;
+ }
+
  const create=txt.match(/^(?:js[,! ]*\s*)?(?:cre[aá]|hac[eé]|haz|arm[aá])\s+(?:un\s+)?torneo\s+br(?:\s+solo|\s+individual)?(?:\s+(?:de|para|con))?\s+(\d{1,3})\s*(?:jugadores|personas|cupos)?/i);
  const slash=txt.match(/^\/torneobr\s+(\d{1,3})\s*$/i);
  const status=/^\/torneobr\s+(?:estado|inscritos)$/i.test(txt);
