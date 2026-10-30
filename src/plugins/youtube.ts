@@ -3,6 +3,7 @@ import { config } from "../config.ts";
 import { command } from "../core/command.ts";
 import { formatDuration } from "../lib/format.ts";
 import { assertVideoSize } from "../lib/media.ts";
+import { musicErrorMessage } from "../features/musicFallback.ts";
 import {
   downloadMp3,
   downloadMp4,
@@ -37,11 +38,15 @@ command({
       );
       return;
     }
-    const video = await findVideo(query);
-    await ctx.reply(
-      `*${video.title}*\n${video.author} · ${formatDuration(video.duration)}\n${video.url}\n\n` +
-        `Use \`${config.prefix}ytmp3\` or \`${config.prefix}ytmp4\` to download.`,
-    );
+    try {
+      const video = await findVideo(query);
+      await ctx.reply(
+        `*${video.title}*\n${video.author} · ${formatDuration(video.duration)}\n${video.url}\n\n` +
+          `Use \`${config.prefix}ytmp3\` or \`${config.prefix}ytmp4\` to download.`,
+      );
+    } catch (error) {
+      await ctx.reply(musicErrorMessage(query, error));
+    }
   },
 });
 
@@ -58,14 +63,18 @@ command({
       await ctx.replyFail(`Usage: \`${config.prefix}${ctx.command} <link|search>\``);
       return;
     }
-    const video = await findVideo(query);
-    await ctx.reply(`*${video.title}* · ${formatDuration(video.duration)}\n_Downloading…_`);
-    await queuedDownload(
-      ctx,
-      "ytmp3",
-      () => downloadMp3(video),
-      (file) => sendAudio(ctx, file),
-    );
+    try {
+      const video = await findVideo(query);
+      await ctx.reply(`*${video.title}* · ${formatDuration(video.duration)}\n_Downloading…_`);
+      await queuedDownload(
+        ctx,
+        "ytmp3",
+        () => downloadMp3(video),
+        (file) => sendAudio(ctx, file),
+      );
+    } catch (error) {
+      await ctx.reply(musicErrorMessage(query, error));
+    }
   },
 });
 
@@ -82,22 +91,26 @@ command({
       await ctx.replyFail(`Usage: \`${config.prefix}ytmp4 <link|search>\``);
       return;
     }
-    const video = await findVideo(query);
-    await ctx.reply(`*${video.title}* · ${formatDuration(video.duration)}\n_Downloading…_`);
-    await queuedDownload(
-      ctx,
-      "ytmp4",
-      () => downloadMp4(video),
-      async (file) => {
-        assertVideoSize((await stat(file)).size);
-        await ctx.send({
-          type: "video",
-          media: file,
-          mimetype: "video/mp4",
-          caption: `*${video.title}* · ${formatDuration(video.duration)}\n${video.url}`,
-        });
-      },
-    );
+    try {
+      const video = await findVideo(query);
+      await ctx.reply(`*${video.title}* · ${formatDuration(video.duration)}\n_Downloading…_`);
+      await queuedDownload(
+        ctx,
+        "ytmp4",
+        () => downloadMp4(video),
+        async (file) => {
+          assertVideoSize((await stat(file)).size);
+          await ctx.send({
+            type: "video",
+            media: file,
+            mimetype: "video/mp4",
+            caption: `*${video.title}* · ${formatDuration(video.duration)}\n${video.url}`,
+          });
+        },
+      );
+    } catch (error) {
+      await ctx.reply(musicErrorMessage(query, error));
+    }
   },
 });
 
@@ -113,13 +126,17 @@ command({
       await ctx.replyFail(`Usage: \`${config.prefix}yts burna boy\``);
       return;
     }
-    const videos = await ctx.withTyping(() => searchVideos(query, 8));
-    if (videos.length === 0) {
-      await ctx.reply("No results.");
-      return;
+    try {
+      const videos = await ctx.withTyping(() => searchVideos(query, 8));
+      if (videos.length === 0) {
+        await ctx.reply("No results.");
+        return;
+      }
+      const lines = videos.map((video, i) => `${i + 1}. *${video.title}*\n   ${video.author} · ${formatDuration(video.duration)}\n   ${video.url}`);
+      await ctx.reply(`*YouTube: ${query}*\n\n${lines.join("\n\n")}\n\n_\`${config.prefix}song <link>\` or \`${config.prefix}video <link>\` to download._`);
+    } catch (error) {
+      await ctx.reply(musicErrorMessage(query, error));
     }
-    const lines = videos.map((video, i) => `${i + 1}. *${video.title}*\n   ${video.author} · ${formatDuration(video.duration)}\n   ${video.url}`);
-    await ctx.reply(`*YouTube: ${query}*\n\n${lines.join("\n\n")}\n\n_\`${config.prefix}song <link>\` or \`${config.prefix}video <link>\` to download._`);
   },
 });
 
