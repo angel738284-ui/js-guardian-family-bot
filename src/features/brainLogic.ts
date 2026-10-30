@@ -33,3 +33,13 @@ export function classifyGroupMessage(raw:string):BrainFinding {
   if(profanity.test(text))return "profanity";
   return null;
 }
+
+/** Una palabra aislada puede ser un ataque si responde a otra persona.
+ * Sin un destinatario verificable no presume acoso ni acumula sanciones. */
+export function classifyContextualReply(raw:string,hasRecipient:boolean):BrainFinding {
+  if(!hasRecipient || !raw || raw.length>100 || /^\s*[#/.]/.test(raw))return null;
+  const text=normalize(raw);
+  const insult="(?:tarad[oa]s?|pelotud[oa]s?|bolud[oa]s?|idiotas?|imbeciles?|inutiles?|estupid[oa]s?|forr[oa]s?|manc[oa]s?|basuras?)";
+  const expression=new RegExp("^(?:(?:que|re|alto|alta|tremendo|tremenda|sos|sos un|sos una)\\s+){0,2}"+insult+"(?:\\s+sos)?$","i");
+  return expression.test(text)?"attack":null;
+}

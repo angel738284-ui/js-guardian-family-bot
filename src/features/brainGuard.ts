@@ -8,7 +8,7 @@ import { guardianLog, guardianWarn } from "./jsGuardian.ts";
 import { getLogGroupJid } from "./logGroup.ts";
 import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { logger } from "../lib/logger.ts";
-import { classifyGroupMessage } from "./brainLogic.ts";
+import { classifyGroupMessage, classifyContextualReply } from "./brainLogic.ts";
 
 export type BrainMode = "suave"|"firme";
 export interface BrainSettings {enabled:boolean;mode:BrainMode}
@@ -48,13 +48,19 @@ function canReply(chat:string,sender:string,now:number):boolean {
 export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
   if(!ctx.isGroup||ctx.fromMe||ctx.chat===getLogGroupJid()||ctx.message.type!=="text"||
     ctx.command||isJSLeader(ctx))return false;
-  const finding=classifyGroupMessage(ctx.text);
+  // "tarado" sin contexto puede ser una broma; al responder a alguien sí
+  // tiene destinatario. Nunca inferirlo desde el mensaje citado por sí solo.
+  const quotedSender=ctx.message.quoted?.sender;
+  const quotedOther=Boolean(quotedSender && !ctx.senderIds.some(id=>normalizeId(id)===normalizeId(quotedSender)));
+  const mentionedOther=ctx.message.mentions.some(id=>!ctx.senderIds.some(own=>normalizeId(own)===normalizeId(id)));
+  const finding=classifyGroupMessage(ctx.text) ?? classifyContextualReply(ctx.text,quotedOther||mentionedOther);
   if(!finding)return false;
   try {
     const settings=await brainSettings(ctx.chat);
     if(!settings.enabled)return false;
     const metadata=await getGroup(ctx.chat).catch(()=>null);
-    if(!metadata||isGroupAdmin(metadata,ctx.senderIds)||await isPrivileged(ctx))return false;
+    if(!metadata||await isPrivileged(ctx))return false;
+    const senderIsAdmin=isGroupAdmin(metadata,ctx.senderIds);
     const sender=normalizeId(ctx.sender);
     const now=Date.now();
     if(finding==="profanity") {
@@ -85,7 +91,9 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
       : "🧹 Pará un poquito, corazón. Acá se puede joder, pero no bardear a otra persona. Respetá.";
     // Modo suave = recordatorios, nunca sanciona; firme = escala SOLO ataques
     // claros y repetidos. Una amenaza directa se advierte desde la primera vez.
-    if(settings.mode==="suave" || (!threat&&count===1) || !isBotAdmin(metadata)){
+    // Los administradores también reciben recordatorios, pero no sanciones
+    // automáticas; una sanción de admin requiere decisión humana.
+    if(senderIsAdmin || settings.mode==="suave" || (!threat&&count===1) || !isBotAdmin(metadata)){
       await sendText(ctx.chat,`${intro} ${tag}`,[ctx.sender]);
       await guardianLog({group_id:ctx.chat,action:"CEREBRO INTERVENCIÓN",actor_id:"JS_CEREBRO",target_id:sender,details:`${finding}, episodio ${count}, modo ${settings.mode}`});
       return true;
