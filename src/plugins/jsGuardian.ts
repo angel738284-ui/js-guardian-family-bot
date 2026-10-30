@@ -116,6 +116,13 @@ command({
     "/links — Ver excepciones\n"+
     "/promo ID — Revisar promos del ID (solo administrador)\n"+
     "/precios o .precios — Lista de precios con y sin promo\n"+
+    "💎 *Compras Epinby (solo JS, por privado):*\n"+
+    "/catalogoepin — Productos disponibles y costo USD\n"+
+    "/saldoepinby — Saldo del proveedor\n"+
+    "/cargar ID 110 — Preparar compra sin pagar\n"+
+    "/confirmarcarga — Comprar con confirmación\n"+
+    "/cancelarcarga — Descartar pedido preparado\n"+
+    "/estadocarga — Estado del último pedido\n"+
     "/kie — Estado de la IA GPT-6 Luna\n"+
     "/kie on|off — Activar o apagar IA en este chat\n"+
     "/caracter 0|1|2|3 — Ajustar estilo del bot\n"+
