@@ -22,6 +22,7 @@ import { runGuardianGuards } from "../features/jsGuardian.ts";
 import { tournamentCommand } from "../features/jsTorneosBot.ts";
 import { canToggleGroup, handleGroupPermission } from "../features/groupDelegation.ts";
 import { sendJsCommands } from "../features/jsCommandCatalog.ts";
+import { privateDirector } from "../features/privateDirector.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -83,6 +84,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
+    if (await privateDirector(ctx)) return;
     if (await sendJsCommands(ctx)) return;
     if (await handleGroupPermission(ctx)) return;
 
