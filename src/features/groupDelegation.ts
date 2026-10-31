@@ -14,7 +14,7 @@ export async function canToggleGroup(ctx:Ctx):Promise<boolean>{
  return ctx.senderIds.some(id=>id.endsWith("@s.whatsapp.net")&&entries.includes(phone(id)));
 }
 export async function handleGroupPermission(ctx:Ctx):Promise<boolean>{
- if(!ctx.isGroup || !/^\/permiso(?:\s|$)/i.test(ctx.text.trim()))return false;
+ if(!ctx.isGroup || !/^[.\/]permiso(?:\s|$)/i.test(ctx.text.trim()))return false;
  if(!isOwner(ctx)&&!isJSLeader(ctx)){await ctx.reply("⛔ Solo el dueño puede administrar permisos.");return true;}
  const args=ctx.text.trim().split(/\s+/);
  const action=(args[1]??"").toLowerCase();

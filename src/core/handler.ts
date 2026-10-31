@@ -45,16 +45,18 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   if (!message) return;
   increment("messages_in");
 
-  // JS Family: aceptar solo estos dos comandos con / sin cambiar los comandos # de Asena.
-  const normalCommand = splitCommand(message.text, config.prefix);
-  const slashCommand = normalCommand ? null : splitCommand(message.text, "/");
+  // El punto es el prefijo público preferido. Se mantienen / y # como
+  // alias antiguos para no romper automatizaciones ni stickers existentes.
+  const normalCommand = splitCommand(message.text, ".");
+  const legacyCommand = normalCommand ? null : splitCommand(message.text, config.prefix);
+  const slashCommand = normalCommand || legacyCommand ? null : splitCommand(message.text, "/");
   const allowedSlashes = ["privados", "reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const translate = (name:string) => ({ ban:"banjs", desban:"desbanjs", unban:"desbanjs", warnings:"warns", links:"linksjs" } as Record<string,string>)[name] ?? name;
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
-    ? { ...slashCommand, name: ({ ban: "banjs", desban: "desbanjs", unban: "desbanjs", warnings: "warns", links: "linksjs" } as Record<string,string>)[slashCommand.name] ?? slashCommand.name }
-    : null;
-  // Aceptar .precios sin alterar otros comandos con el prefijo de Asena.
-  const dotCommand = normalCommand || translated ? null : splitCommand(message.text, ".");
-  const command = normalCommand ?? translated ?? (dotCommand?.name === "precios" || dotCommand?.name === "torneos" ? dotCommand : null);
+    ? { ...slashCommand, name: translate(slashCommand.name) } : null;
+  const dotCommand = normalCommand;
+  const command = (normalCommand && !["off","on","cmds","permiso","torneobr","verificarid","jugadortorneo","buscartorneo"].includes(normalCommand.name)
+    ? {...normalCommand,name:translate(normalCommand.name)} : null) ?? legacyCommand ?? translated;
   const ctx = createContext(client, event, message, command);
 
   try {
