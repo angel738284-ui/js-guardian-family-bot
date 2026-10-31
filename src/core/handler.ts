@@ -20,6 +20,7 @@ import { increment, recordCommand, recordError } from "../features/metrics.ts";
 import { runGroupGuards } from "../features/moderation.ts";
 import { runGuardianGuards } from "../features/jsGuardian.ts";
 import { tournamentCommand } from "../features/jsTorneosBot.ts";
+import { canToggleGroup, handleGroupPermission } from "../features/groupDelegation.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -79,9 +80,11 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
+    if (await handleGroupPermission(ctx)) return;
+
     if (ctx.isGroup && dotCommand && (dotCommand.name === "off" || dotCommand.name === "on")) {
       const groupMeta = await ctx.group();
-      const isAdmin = isJSLeader(ctx) || isOwner(ctx) || isGroupAdmin(groupMeta, ctx.senderIds);
+      const isAdmin = isJSLeader(ctx) || isOwner(ctx) || isGroupAdmin(groupMeta, ctx.senderIds) || await canToggleGroup(ctx);
       if (!isAdmin) { await ctx.reply("⛔ Solo los administradores pueden abrir o cerrar el grupo."); return; }
       if (!isBotAdmin(groupMeta)) { await ctx.reply("⚠️ Necesito ser administrador para cambiar quién puede escribir."); return; }
       try {
