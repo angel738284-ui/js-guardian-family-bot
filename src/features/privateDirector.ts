@@ -4,10 +4,11 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
-import { activateTeamSignup, getTeamSignupStatus } from "./teamSignup.ts";
+import { activateTeamSignup, getTeamSignup, getTeamSignupStatus } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
+const RESET="js_director_signup_reset_v1";
 type Draft={text:string;group:string;created:number;request:string};
 const leader=(ctx:Ctx)=>!ctx.fromMe&&(isOwner(ctx)||isJSLeader(ctx));
 const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -45,6 +46,40 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   await ctx.reply(status?"📍 *"+dest.name+"*\n\n"+status:"📋 El anuncio puede estar publicado, pero no hay inscripciones activadas para ese grupo. Escribí *.equipos iniciar negro blanco* dentro del grupo para comenzar.");
   return true;
  }
+ // Órdenes reales del dueño: iniciar o reiniciar inscripciones, sin pasar por IA.
+ const reset=await kv.get<{group:string;colors:string[];at:number}>(RESET);
+ if(reset && /^(?:si|confirmo|dale|hazlo|hacelo|reinicia|reiniciala|confirmar)$/i.test(text)){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target||target.jid!==reset.group||Date.now()-reset.at>10*60_000){
+   await kv.delete(RESET);await ctx.reply("⌛ La confirmación venció o cambió el grupo. Pedime nuevamente que tome lista.");return true;
+  }
+  await activateTeamSignup(target.jid,reset.colors);
+  await kv.delete(RESET);
+  await sendText(target.jid,"📋 *LISTA NUEVA — INSCRIPCIONES ABIERTAS*\nEquipos: *"+reset.colors.map(c=>c.toUpperCase()).join(" vs ")+"*\nMandá únicamente *ID de Free Fire y color*.\nEjemplo: *123456789 "+reset.colors[0]+"*\nVerificaré el nombre antes de anotar.\nConsultá con *.equipos lista*.");
+  await ctx.reply("✅ Lista reiniciada en *"+target.name+"*. Ya estoy tomando inscripciones por ID y color.");
+  return true;
+ }
+ const signupOrder=/(?:toma|tom[aá]|empeza|empez[aá]|empieza|comenza|comenz[aá]|inicia|inici[aá]|abre|abr[ií]|arma|arm[aá]|crea|cre[aá]|haz|hac[eé])\b.{0,65}\b(?:lista|inscripciones|anotados|jugadores|equipos)\b|\b(?:lista|inscripciones)\s+(?:nueva|desde cero|de nuevo)/i.test(text);
+ if(signupOrder){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("📍 Primero elegí el grupo: escribí *.destino poner* dentro de ese grupo.");return true;}
+  const words=text.split(/[^a-z]+/);
+  const specified=["negro","rojo","blanco","azul"].filter(c=>words.includes(c));
+  const previous=await getTeamSignup(target.jid);
+  const colors=specified.length===2?specified:previous?Object.keys(previous.teams):[];
+  if(colors.length!==2){await ctx.reply("🎨 ¿Qué dos equipos querés? Por ejemplo: *tomá lista nueva negro blanco*.");return true;}
+  const count=previous?Object.values(previous.teams).reduce((n,players)=>n+players.length,0):0;
+  if(count>0){
+   await kv.set(RESET,{group:target.jid,colors,at:Date.now()});
+   await ctx.reply("⚠️ Ya hay *"+count+" jugadores anotados*. Empezar una lista nueva los borrará de la lista activa. Respondé *confirmo* para reiniciar o *cancelar* para conservarlos.");
+   return true;
+  }
+  await activateTeamSignup(target.jid,colors);
+  await sendText(target.jid,"📋 *INSCRIPCIONES ABIERTAS*\n🏆 *"+colors.map(c=>c.toUpperCase()).join(" vs ")+"*\nMandá únicamente *ID de Free Fire y color*.\nEjemplo: *123456789 "+colors[0]+"*\nEl bot comprobará el nombre y lo anotará automáticamente.\nConsultá con *.equipos lista*.");
+  await ctx.reply("✅ Ya empecé a tomar lista en *"+target.name+"*. Los jugadores pueden mandar su ID y color.");
+  return true;
+ }
+ if(reset && cancel.test(text)){await kv.delete(RESET);await ctx.reply("✅ Cancelado. Conservé la lista anterior.");return true;}
  const pending=await kv.get<Draft>(DRAFT);
  if(cancel.test(text)&&pending){
   await kv.set(DRAFT,null);

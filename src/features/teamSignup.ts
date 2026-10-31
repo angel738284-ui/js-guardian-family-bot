@@ -9,6 +9,9 @@ const key=(group:string)=>"js_team_signup:"+group;
 type Player={id:string;name:string;sender:string};
 export type Signup={active:boolean;teams:Record<string,Player[]>;created:number};
 const locks=new Set<string>();
+export async function getTeamSignup(group:string):Promise<Signup|null>{
+ return kv.get<Signup>(key(group));
+}
 export async function activateTeamSignup(group:string,colors:string[]):Promise<void>{
  const teams:Record<string,Player[]>={};
  for(const color of colors)teams[color.toLowerCase()]=[];
