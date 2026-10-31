@@ -4,7 +4,7 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
-import { activateTeamSignup } from "./teamSignup.ts";
+import { activateTeamSignup, getTeamSignupStatus } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
@@ -34,6 +34,15 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
  if(/^\.destino(?:\s|$)/i.test(raw)){
   const target=await kv.get<{jid:string;name:string}>(DEST);
   await ctx.reply(target?"📍 Grupo de destino: *"+target.name+"*":"⚠️ Todavía no elegiste grupo. Escribí *.destino poner* dentro del grupo donde querés publicar.");
+  return true;
+ }
+ // Preguntas sobre la lista del torneo activo se contestan desde el estado persistente,
+ // no desde la memoria temporal de la IA.
+ if(/^(?:\.equipos\s+(?:lista|estado)|(?:che[, ]*)?(?:como|que|mostra|mostrame|pasame|dame|ver|quiero ver|cuantos|cuantas|hay)\b.{0,95}(?:lista|jugadores|equipos|anotados|inscriptos|cupos|torneo)|(?:la )?lista de jugadores(?: del torneo)?)/i.test(text)){
+  const dest=await kv.get<{jid:string;name:string}>(DEST);
+  if(!dest){await ctx.reply("📍 Todavía no configuraste un grupo de destino. Usá *.destino poner* en el grupo.");return true;}
+  const status=await getTeamSignupStatus(dest.jid);
+  await ctx.reply(status?"📍 *"+dest.name+"*\n\n"+status:"📋 El anuncio puede estar publicado, pero no hay inscripciones activadas para ese grupo. Escribí *.equipos iniciar negro blanco* dentro del grupo para comenzar.");
   return true;
  }
  const pending=await kv.get<Draft>(DRAFT);

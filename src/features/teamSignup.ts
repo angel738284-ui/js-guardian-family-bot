@@ -25,8 +25,11 @@ export async function teamSignup(ctx:Ctx):Promise<boolean>{
   return true;
  }
  const signup=await kv.get<Signup>(key(ctx.chat));
- if(!signup?.active)return false;
  const txt=ctx.text.trim();
+ if(/^\.equipos\s+(?:lista|estado)$/i.test(txt)){
+  await ctx.reply(signup?await getTeamSignupStatus(ctx.chat)??render(signup):"📋 Todavía no hay inscripciones configuradas en este grupo. JS puede iniciarlas con *.equipos iniciar negro blanco*.");return true;
+ }
+ if(!signup?.active)return false;
  const isAdmin=isOwner(ctx)||isJSLeader(ctx);
  if(/^\.equipos\s+(?:cerrar|pausar)$/i.test(txt)&&isAdmin){
   signup.active=false;await kv.set(key(ctx.chat),signup);await ctx.reply("🔒 Inscripciones de equipos cerradas.");return true;
@@ -66,6 +69,12 @@ export async function teamSignup(ctx:Ctx):Promise<boolean>{
  }catch(e){await ctx.reply("⚠️ No pude verificar ese ID: "+(e instanceof Error?e.message:"error temporal")+". No quedó inscrito.");}
  finally{locks.delete(ctx.chat);}
  return true;
+}
+export async function getTeamSignupStatus(group:string):Promise<string|null>{
+ const signup=await kv.get<Signup>(key(group));
+ if(!signup)return null;
+ const count=Object.values(signup.teams).reduce((sum,players)=>sum+players.length,0);
+ return (signup.active?"🟢 *INSCRIPCIONES ABIERTAS*":"🔒 *INSCRIPCIONES CERRADAS*")+"\n📊 *Anotados:* "+count+"/12\n\n"+render(signup);
 }
 function render(s:Signup):string{
  return "🏆 *LISTA DEL TORNEO*\n\n"+Object.entries(s.teams).map(([color,players])=>
