@@ -23,6 +23,7 @@ import { tournamentCommand } from "../features/jsTorneosBot.ts";
 import { canToggleGroup, handleGroupPermission } from "../features/groupDelegation.ts";
 import { sendJsCommands } from "../features/jsCommandCatalog.ts";
 import { privateDirector } from "../features/privateDirector.ts";
+import { teamSignup } from "../features/teamSignup.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -100,6 +101,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
       return;
     }
     if (await tournamentCommand(ctx)) return;
+    if (await teamSignup(ctx)) return;
 
     // Los participantes pueden conversar con la IA, pero nunca ejecutar compras ni comandos privados.
     if (!isJSLeader(ctx)) {

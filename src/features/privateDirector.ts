@@ -4,6 +4,7 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
+import { activateTeamSignup } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
@@ -49,6 +50,13 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   if(!dest||dest.jid!==pending.group){await ctx.reply("⚠️ Cambió el grupo de destino. Volvé a preparar el anuncio para evitar enviarlo al grupo equivocado.");return true;}
   try{
    await sendText(dest.jid,pending.text);
+   if(/6\s*(?:vs|v|x|contra)\s*6/i.test(pending.request)){
+    const colors=["negro","rojo","blanco","azul"].filter(c=>new RegExp("\b"+c+"\b","i").test(pending.request));
+    if(colors.length===2){
+     await activateTeamSignup(dest.jid,colors);
+     await sendText(dest.jid,"📋 *INSCRIPCIONES AUTOMÁTICAS ABIERTAS*\nMandá únicamente tu *ID de Free Fire y color*.\nEjemplo: *123456789 negro*\nVerificaré el nombre del ID y lo agregaré al equipo elegido.\nUsá *.equipos lista* para ver los cupos.");
+    }
+   }
    await kv.set(DRAFT,null);
    await ctx.reply("✅ Publicado en *"+dest.name+"*.");
   }catch{await ctx.reply("⚠️ No pude publicar el anuncio. Revisá que el bot siga en el grupo y probá otra vez.");}
