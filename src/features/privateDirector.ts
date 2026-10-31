@@ -64,7 +64,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   if(!main){await ctx.reply("📋 No hay una lista de titulares activa para modificar.");return true;}
   const ids=Array.from(text.matchAll(/\b\d{5,16}\b/g),m=>m[0]);
   const colors=Object.keys(main.teams);
-  const mentioned=colors.filter(c=>new RegExp("\b"+c+"\b").test(text));
+  const mentioned=colors.filter(c=>new RegExp("\\b"+c+"\\b").test(text));
   const ordinal=text.match(/(?:jugador|puesto|numero|nro|posicion)\s*(?:n[uú]mero\s*)?([1-6])\b/);
   const origin=mentioned[0];
   let id=ids[0];
@@ -79,6 +79,14 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   const action:RosterAction={kind,id,color:destColor};
   await kv.set(EDIT,{group:target.jid,action,created:Date.now()});
   await ctx.reply("📝 *CONFIRMAR CAMBIO*\n👤 "+player.name+"\n🎮 "+id+"\n📍 Equipo actual: "+current.toUpperCase()+"\n🔧 Acción: "+(kind==="remove"?"Retirar de titulares":kind==="replace"?"Reemplazar por el primer suplente":"Pasar al equipo "+destColor?.toUpperCase())+"\n\nRespondé *confirmo* para aplicar y publicar la lista actualizada, o *cancelar*.");
+  return true;
+ }
+ // Si la solicitud es ambigua, pedir cambios concretos en vez de reiniciar.
+ if(/\b(?:quiero|necesito|vamos a|haceme|hace|hacer)\b.{0,35}\b(?:cambios|modificaciones)\b|\b(?:estos son los jugadores|toma estos|actualiza la lista|modifica la lista)\b/i.test(text)){
+  const dest=await kv.get<{jid:string;name:string}>(DEST);
+  const status=dest?await getTeamSignupStatus(dest.jid):null;
+  await kv.delete(RESET);
+  await ctx.reply("📝 *VAMOS A EDITAR LA LISTA*\n"+(status?"Tengo la lista de *"+dest!.name+"* guardada. Los titulares no se borrarán.\n\n":"")+"Decime el cambio exacto, por ejemplo:\n• *Sacá al jugador 3 del Negro*\n• *Reemplazá al jugador 2 del Blanco por el primer suplente*\n• *Pasá al jugador con ID 123456789 al Blanco*\n\nTe pediré confirmación antes de modificarla.");
   return true;
  }
  // Preguntas sobre la lista del torneo activo se contestan desde el estado persistente,
@@ -116,7 +124,8 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   }catch(e){await ctx.reply("⚠️ "+(e instanceof Error?e.message:"No pude abrir suplentes."));}
   return true;
  }
- const signupOrder=/(?:toma|tom[aá]|empeza|empez[aá]|empieza|comenza|comenz[aá]|inicia|inici[aá]|abre|abr[ií]|arma|arm[aá]|crea|cre[aá]|haz|hac[eé])\b.{0,65}\b(?:lista|inscripciones|anotados|jugadores|equipos)\b|\b(?:lista|inscripciones)\s+(?:nueva|desde cero|de nuevo)/i.test(text);
+ // Reiniciar requiere una intención explícita; "tomá estos son los jugadores" NO es reiniciar.
+ const signupOrder=/\b(?:lista|inscripciones)\s+(?:nueva|desde cero|de nuevo)\b|\b(?:reinicia|reiniciar|resetea|resetear|borra|borrar)\b.{0,40}\b(?:lista|inscripciones|equipos)\b|\b(?:empeza|empezar|empieza|comenza|comenzar|inicia|iniciar|abre|abrir|crea|crear|arma|armar|toma|tomar)\b.{0,35}\b(?:lista|inscripciones)\b/i.test(text)&&!/\b(?:quiero hacer estos cambios|estos son los jugadores|toma estos|modifica|modificar|actualiza|actualizar)\b/i.test(text);
  if(signupOrder){
   const target=await kv.get<{jid:string;name:string}>(DEST);
   if(!target){await ctx.reply("📍 Primero elegí el grupo: escribí *.destino poner* dentro de ese grupo.");return true;}
