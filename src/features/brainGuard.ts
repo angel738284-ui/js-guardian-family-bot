@@ -5,7 +5,7 @@ import { aiBrainConfigured, classifyWithKie, type ModerationVerdict } from "./br
 import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { isPrivileged } from "./access.ts";
 import { getGroup, isBotAdmin, isGroupAdmin } from "./groups.ts";
-import { guardianLog, guardianWarn } from "./jsGuardian.ts";
+import { guardianLog, guardianWarn, reportModerationEvidence } from "./jsGuardian.ts";
 import { getLogGroupJid } from "./logGroup.ts";
 import { mentionTag, normalizeId } from "../lib/jid.ts";
 import { logger } from "../lib/logger.ts";
@@ -119,6 +119,7 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
     if(!finding){brainStage(ctx.chat,"sin_infraccion");return false;}
     const canDelete=isBotAdmin(metadata);
     if(settings.mode==="firme" && settings.autoDelete && shouldDelete && canDelete){
+      await reportModerationEvidence(ctx, "Mensaje grave detectado por IA, pendiente de eliminación");
       const removed=await deleteSevereMessage(ctx,canDelete);
       if(removed){
         const sender=normalizeId(ctx.sender);
@@ -148,6 +149,7 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
     if(finding==="profanity"){
       await sendText(ctx.chat,`🧹 Che ${tag}, cuidemos el lenguaje, ¿sí? Acá se puede bromear sin faltar el respeto. 😌`,[ctx.sender]);
       brainStage(ctx.chat,"recordatorio");
+      await reportModerationEvidence(ctx, "Lenguaje grosero (recordatorio, sin sanción)");
       await guardianLog({group_id:ctx.chat,action:"CEREBRO RECORDATORIO",actor_id:"JS_CEREBRO",target_id:sender,details:"Lenguaje grosero, sin sanción"});
       return true;
     }
@@ -166,10 +168,12 @@ export async function runBrainGuard(ctx:Ctx):Promise<boolean> {
     if(senderIsAdmin || settings.mode==="suave" || (!threat&&count===1) || !isBotAdmin(metadata)){
       await sendText(ctx.chat,`${intro} ${tag}`,[ctx.sender]);
       brainStage(ctx.chat,"intervencion");
+      await reportModerationEvidence(ctx, "Intervención por " + finding);
       await guardianLog({group_id:ctx.chat,action:"CEREBRO INTERVENCIÓN",actor_id:"JS_CEREBRO",target_id:sender,details:`${finding}, episodio ${count}, modo ${settings.mode}`});
       return true;
     }
     brainStage(ctx.chat,"advertencia");
+    await reportModerationEvidence(ctx, "Advertencia por " + finding);
     await guardianWarn(ctx.chat,"JS_CEREBRO",ctx.sender,ctx.senderIds,intro);
     return true;
   }catch(err){

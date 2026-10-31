@@ -18,6 +18,33 @@ const warnedBurstAt = new Map<string, number>();
 const MINUTE = 60_000;
 const WARN_LIMIT = 3;
 
+export async function reportModerationEvidence(ctx: Ctx, reason: string, sticker = false): Promise<void> {
+  const destination = getLogGroupJid();
+  if (!destination) return;
+  const description = [
+    "🔎 *EVIDENCIA DE MODERACIÓN*",
+    "👤 Usuario: " + normalizeId(ctx.sender),
+    "👥 Grupo: " + ctx.chat,
+    "⚠️ Motivo: " + reason,
+    "🆔 Mensaje: " + (ctx.event.key?.id ?? "desconocido")
+  ];
+  if (!sticker) {
+    description.push("💬 Texto original:\n" + (ctx.text.trim().slice(0, 1800) || "(sin texto recuperable)"));
+    await sendText(destination, description.join("\n")).catch(err => logger.warn("Evidencia de texto falló: " + errorMessage(err)));
+    return;
+  }
+  description.push("📎 Sticker original a continuación:");
+  await sendText(destination, description.join("\n")).catch(err => logger.warn("Informe de sticker falló: " + errorMessage(err)));
+  try {
+    const bytes = await ctx.client.message.downloadBytes(ctx.event);
+    if (!bytes?.length || bytes.length > 2_500_000) throw new Error("Sticker no recuperable o demasiado grande");
+    await send(destination, { type: "sticker", media: bytes, mimetype: "image/webp" });
+  } catch (err) {
+    logger.warn("Evidencia de sticker falló: " + errorMessage(err));
+    await sendText(destination, "⚠️ No se pudo adjuntar el sticker original.").catch(() => {});
+  }
+}
+
 async function reportStickerEvidence(ctx: Ctx, category: string, confidence: number): Promise<void> {
   const destination = getLogGroupJid();
   if (!destination) return;
@@ -106,6 +133,7 @@ export async function runGuardianGuards(ctx: Ctx): Promise<boolean> {
       const recent = countInWindow(stickerTimes.get(key) ?? [], now, MINUTE);
       stickerTimes.set(key, recent);
       if (recent.length > 2) {
+        await reportModerationEvidence(ctx, "Exceso de stickers (ANTISTICKERS)", true);
         await send(ctx.chat, { type: "revoke", target: ctx.event }).catch(() => {});
         if (now - (warnedBurstAt.get(key) ?? 0) >= MINUTE) {
           warnedBurstAt.set(key, now);
