@@ -12,7 +12,25 @@ import { wantsQuotedReply, quotedPrompt } from "./quotedContext.ts";
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
 const hourCounts = new Map<string, { at: number; n: number }>();
-const conversationHistory = new Map<string, { at: number; turns: Array<{ role: "user" | "assistant"; content: string }> }>();
+type ConversationTurn={role:"user"|"assistant";content:string};
+type ConversationEntry={at:number;turns:ConversationTurn[]};
+const conversationHistory = new Map<string,ConversationEntry>();
+const LEADER_HISTORY_TTL=7*24*60*60*1000;
+const historyStoreKey=(chat:string,user:string)=>"js:ai:leader_history:"+chat+":"+user;
+async function loadHistory(chat:string,user:string,leader:boolean):Promise<ConversationEntry|null>{
+ const k=chat+":"+user;
+ const cached=conversationHistory.get(k);
+ if(cached&&Date.now()-cached.at<(leader?LEADER_HISTORY_TTL:20*60_000))return cached;
+ if(!leader)return null;
+ const stored=await kv.get<ConversationEntry>(historyStoreKey(chat,user));
+ if(!stored||!Array.isArray(stored.turns)||Date.now()-stored.at>=LEADER_HISTORY_TTL){
+  if(stored)await kv.delete(historyStoreKey(chat,user));
+  return null;
+ }
+ const safe={at:stored.at,turns:stored.turns.slice(-12).filter(t=>(t.role==="user"||t.role==="assistant")&&typeof t.content==="string")};
+ conversationHistory.set(k,safe);
+ return safe;
+}
 let active = false;
 let lastRequest = 0;
 let daily = { day: "", count: 0 };
@@ -113,15 +131,17 @@ function limit(ctx: Ctx): string | null {
   return null;
 }
 
-export function clearKieConversation(chat: string, user: string): void {
+export async function clearKieConversation(chat: string, user: string): Promise<void> {
   conversationHistory.delete(chat + ":" + user);
+  await kv.delete(historyStoreKey(chat,user));
 }
 
 export async function answerWithKie(ctx: Ctx): Promise<void> {
   const user = normalizeId(ctx.sender);
   const historyKey = ctx.chat + ":" + user;
-  const existing = conversationHistory.get(historyKey);
-  const turns = existing && Date.now() - existing.at < 20 * 60_000 ? existing.turns : [];
+  const leader=isJSLeader(ctx);
+  const existing=await loadHistory(ctx.chat,user,leader);
+  const turns=existing?.turns??[];
   const quote=ctx.message.quoted;
   const prompt=quotedPrompt(ctx.text,quote);
   const live = await buildLiveContext(ctx.text, turns);
@@ -136,11 +156,13 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
     const reply = await kieGenerate(
       prompt, ctx.pushName, tone, memories, quote ? [] : turns, isJSLeader(ctx), live?.facts ?? "",
     );
-    conversationHistory.set(historyKey, {at:Date.now(),turns:[
+    const updated:ConversationEntry={at:Date.now(),turns:[
       ...turns,
       {role:"user" as const,content:ctx.text.slice(0,700)+(quote?.text ? " [Mensaje citado: "+quote.text.slice(0,350)+"]" : "")},
       {role:"assistant" as const,content:reply},
-    ].slice(-6)});
+    ].slice(leader?-12:-6)};
+    conversationHistory.set(historyKey,updated);
+    if(leader)await kv.set(historyStoreKey(ctx.chat,user),updated);
     if (conversationHistory.size > 150)
       conversationHistory.delete(conversationHistory.keys().next().value!);
     await ctx.reply(reply);
