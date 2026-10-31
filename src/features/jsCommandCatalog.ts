@@ -37,13 +37,60 @@ const special=[
  "• `/guardian links on|off` — Antilinks",
  "• `/privados on|off|estado` — Respuestas privadas",
 ];
+// Solo oculta del catálogo .cmds: no altera el registro ni la ejecución.
+const hiddenFromCmds = new Set([
+  "joke",
+  "fact",
+  "neko",
+  "math",
+  "fancy",
+  "quote",
+  "circle",
+  "waves",
+  "lyrics",
+  "bgm",
+  "yt",
+  "yts",
+  "ytmp3",
+  "ytmp4",
+  "ytlogin",
+  "fb",
+  "ig",
+  "attp",
+  "ttp",
+  "trt",
+  "exif",
+  "getexif",
+  "removebg",
+  "toimg",
+  "tomp3",
+  "compress",
+  "budget",
+  "delbudget",
+  "business",
+  "archive",
+  "unarchive",
+  "repo",
+  "timezone",
+  "weather",
+  "backup",
+  "eval",
+  "logout",
+  "rotate",
+  "prefix",
+  "flag",
+  "mode",
+  "disable",
+  "enable",
+]);
+
 export async function sendJsCommands(ctx:Ctx):Promise<boolean>{
  if(!/^\.cmds\s*$/i.test(ctx.text.trim()))return false;
  if(!isOwner(ctx)&&!isJSLeader(ctx)){await ctx.reply("⛔ El catálogo completo es exclusivo del dueño.");return true;}
  const intro="📚 *JS GUARDIAN — TODOS LOS COMANDOS*\nComandos reales registrados + funciones especiales.\nEl prefijo general es `"+config.prefix+"`. Los comandos con / y . se escriben exactamente como aparecen.";
  const blocks=[intro,"✨ *COMANDOS ESPECIALES*\n"+special.join("\n")];
  for(const section of sections){
-  const commands=menuCommands().filter(c=>c.category===section.category);
+  const commands=menuCommands().filter(c=>c.category===section.category && !hiddenFromCmds.has(c.name));
   if(!commands.length)continue;
   const lines=commands.map(c=>{
    const scope=c.permission==="owner"?" 👑":c.adminOnly?" 🔐":"";
