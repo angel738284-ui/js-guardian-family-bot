@@ -1,4 +1,5 @@
 import { menuCommands, type Category } from "../core/command.ts";
+import { descriptionsEs } from "./jsCommandDescriptions.ts";
 import type { Ctx } from "../core/context.ts";
 import { isOwner } from "./access.ts";
 import { isJSLeader } from "./ai/leaderIdentity.ts";
@@ -12,29 +13,29 @@ const sections: {category:Category;title:string}[]=[
 ];
 const special=[
  "🔒 *GRUPO*",
- "• `.off` — Cerrar el grupo",
- "• `.on` — Abrir el grupo",
- "• `.permiso agregar NÚMERO grupo` — Delegar apertura/cierre",
- "• `.permiso quitar NÚMERO grupo` — Revocar permiso",
- "• `.permiso lista` — Listar autorizados",
- "• `.permiso ver NÚMERO` — Consultar autorización",
+ "• *.off* — Cerrar el grupo",
+ "• *.on* — Abrir el grupo",
+ "• *.permiso agregar NÚMERO grupo* — Delegar apertura/cierre",
+ "• *.permiso quitar NÚMERO grupo* — Revocar permiso",
+ "• *.permiso lista* — Listar autorizados",
+ "• *.permiso ver NÚMERO* — Consultar autorización",
  "🏆 *JS TORNEOS*",
- "• `.torneobr 20` — Crear BR Solo (solo JS)",
- "• `.torneobr estado` — Consultar inscritos",
- "• `.torneobr pausar` — Pausar inscripciones",
- "• `.torneobr seguir CÓDIGO` — Reanudar",
- "• `.verificarid ID` — Buscar jugador en torneos",
- "• `.jugadortorneo ID` / `.buscartorneo ID` — Alternativas",
+ "• *.torneobr 20* — Crear BR Solo (solo JS)",
+ "• *.torneobr estado* — Consultar inscritos",
+ "• *.torneobr pausar* — Pausar inscripciones",
+ "• *.torneobr seguir CÓDIGO* — Reanudar",
+ "• *.verificarid ID* — Buscar jugador en torneos",
+ "• *.jugadortorneo ID* / *.buscartorneo ID* — Alternativas",
  "• `JS, haz un torneo BR para 20 jugadores` — Crear con frase",
  "🤖 *CEREBRO Y SEGURIDAD*",
- "• `.cerebro on|off` — Moderación",
- "• `.cerebro ia on|off` — Análisis IA",
- "• `.cerebro modo firme|suave` — Nivel",
- "• `.cerebro borrar on|off` — Borrado",
- "• `.guardian stickers on|off` — Antispam de stickers",
- "• `.guardian contenido on|off` — Análisis visual",
- "• `.guardian links on|off` — Antilinks",
- "• `.privados on|off|estado` — Respuestas privadas",
+ "• *.cerebro on|off* — Moderación",
+ "• *.cerebro ia on|off* — Análisis IA",
+ "• *.cerebro modo firme|suave* — Nivel",
+ "• *.cerebro borrar on|off* — Borrado",
+ "• *.guardian stickers on|off* — Antispam de stickers",
+ "• *.guardian contenido on|off* — Análisis visual",
+ "• *.guardian links on|off* — Antilinks",
+ "• *.privados on|off|estado* — Respuestas privadas",
 ];
 // Solo oculta del catálogo .cmds: no altera el registro ni la ejecución.
 const hiddenFromCmds = new Set([
@@ -93,8 +94,8 @@ export async function sendJsCommands(ctx:Ctx):Promise<boolean>{
   if(!commands.length)continue;
   const lines=commands.map(c=>{
    const scope=c.permission==="owner"?" 👑":c.adminOnly?" 🔐":"";
-   const use=c.usage?" "+c.usage:"";
-   return "• `"+"."+c.name+use+"`"+scope+" — "+c.description;
+   const use=c.usage?"\n   📝 Uso: "+c.usage:"";
+   return "• *."+c.name+"*"+scope+" — "+(descriptionsEs[c.name] ?? "Consultar la función con .help "+c.name)+use;
   });
   blocks.push("*"+section.title+"*\n"+lines.join("\n"));
  }
