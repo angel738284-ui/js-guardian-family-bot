@@ -4,7 +4,7 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
-import { activateTeamSignup, getTeamSignup, getTeamSignupStatus } from "./teamSignup.ts";
+import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
@@ -57,6 +57,19 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   await kv.delete(RESET);
   await sendText(target.jid,"📋 *LISTA NUEVA — INSCRIPCIONES ABIERTAS*\nEquipos: *"+reset.colors.map(c=>c.toUpperCase()).join(" vs ")+"*\nMandá únicamente *ID de Free Fire y color*.\nEjemplo: *123456789 "+reset.colors[0]+"*\nVerificaré el nombre antes de anotar.\nConsultá con *.equipos lista*.");
   await ctx.reply("✅ Lista reiniciada en *"+target.name+"*. Ya estoy tomando inscripciones por ID y color.");
+  return true;
+ }
+ if(/\b(?:suplente|suplentes|reserva|reservas)\b/i.test(text)&&/\b(?:lista|inscripciones|anota|anotar|toma|tomar|abre|abrir|empeza|empieza|inicia)\b/i.test(text)){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("📍 Elegí primero el grupo con *.destino poner*.");return true;}
+  const main=await getTeamSignup(target.jid);
+  if(!main){await ctx.reply("⚠️ Primero creá la lista de titulares.");return true;}
+  try{
+   const colors=Object.keys(main.teams);
+   await startSubstituteSignup(target.jid,colors);
+   await sendText(target.jid,"📋 *INSCRIPCIONES DE SUPLENTES ABIERTAS*\nEquipos: *"+colors.map(c=>c.toUpperCase()).join(" vs ")+"*\nMandá *ID y color*.\nEjemplo: *123456789 "+colors[0]+"*\nSe verifica el nombre antes de anotarlo. Los titulares no se modifican.\nConsultá *.equipos suplentes lista*.");
+   await ctx.reply("✅ Abrí la lista independiente de suplentes en *"+target.name+"*. Los "+Object.values(main.teams).reduce((n,p)=>n+p.length,0)+" titulares quedaron intactos.");
+  }catch(e){await ctx.reply("⚠️ "+(e instanceof Error?e.message:"No pude abrir suplentes."));}
   return true;
  }
  const signupOrder=/(?:toma|tom[aá]|empeza|empez[aá]|empieza|comenza|comenz[aá]|inicia|inici[aá]|abre|abr[ií]|arma|arm[aá]|crea|cre[aá]|haz|hac[eé])\b.{0,65}\b(?:lista|inscripciones|anotados|jugadores|equipos)\b|\b(?:lista|inscripciones)\s+(?:nueva|desde cero|de nuevo)/i.test(text);
