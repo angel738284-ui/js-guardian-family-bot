@@ -16,6 +16,14 @@ export async function activateTeamSignup(group:string,colors:string[]):Promise<v
 }
 export async function teamSignup(ctx:Ctx):Promise<boolean>{
  if(!ctx.isGroup)return false;
+ const start=ctx.text.trim().match(/^\.equipos\s+(?:iniciar|abrir)\s+(negro|rojo|blanco|azul)\s+(negro|rojo|blanco|azul)$/i);
+ if(start){
+  if(!(isOwner(ctx)||isJSLeader(ctx))){await ctx.reply("⛔ Solo JS puede iniciar inscripciones.");return true;}
+  if(start[1]!.toLowerCase()===start[2]!.toLowerCase()){await ctx.reply("⚠️ Elegí dos colores distintos.");return true;}
+  await activateTeamSignup(ctx.chat,[start[1]!,start[2]!]);
+  await ctx.reply("✅ *INSCRIPCIONES ABIERTAS*\nMandá *ID y color*, por ejemplo: *123456789 blanco*.\nVerificaré el nombre antes de anotar.\nUsá *.equipos lista* para consultar los equipos.");
+  return true;
+ }
  const signup=await kv.get<Signup>(key(ctx.chat));
  if(!signup?.active)return false;
  const txt=ctx.text.trim();

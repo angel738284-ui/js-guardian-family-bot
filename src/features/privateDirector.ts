@@ -51,7 +51,8 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   try{
    await sendText(dest.jid,pending.text);
    if(/6\s*(?:vs|v|x|contra)\s*6/i.test(pending.request)){
-    const colors=["negro","rojo","blanco","azul"].filter(c=>new RegExp("\b"+c+"\b","i").test(pending.request));
+    const words=pending.request.toLowerCase().split(/[^a-záéíóúñ]+/);
+    const colors=["negro","rojo","blanco","azul"].filter(c=>words.includes(c));
     if(colors.length===2){
      await activateTeamSignup(dest.jid,colors);
      await sendText(dest.jid,"📋 *INSCRIPCIONES AUTOMÁTICAS ABIERTAS*\nMandá únicamente tu *ID de Free Fire y color*.\nEjemplo: *123456789 negro*\nVerificaré el nombre del ID y lo agregaré al equipo elegido.\nUsá *.equipos lista* para ver los cupos.");
