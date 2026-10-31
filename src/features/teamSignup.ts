@@ -22,6 +22,37 @@ export async function getSubstituteStatus(group:string):Promise<string|null>{
  if(!s)return null;
  return (s.active?"🟢":"🔒")+" *SUPLENTES*\n"+Object.entries(s.teams).map(([c,p])=>"*"+c.toUpperCase()+"* ("+p.length+")\n"+(p.length?p.map((x,i)=>(i+1)+". "+x.name+" — "+x.id).join("\n"):"Sin suplentes")).join("\n\n");
 }
+export type RosterAction={kind:"remove"|"move"|"replace";id:string;color?:string};
+export async function applyRosterAction(group:string,action:RosterAction):Promise<string>{
+ if(locks.has(group))throw new Error("Hay otra inscripción en proceso. Intentá nuevamente.");
+ locks.add(group);
+ try{
+  const main=await kv.get<Signup>(key(group));
+  if(!main)throw new Error("No hay torneo configurado.");
+  const subs=await kv.get<Signup>(subKey(group));
+  const location=Object.entries(main.teams).find(([,players])=>players.some(p=>p.id===action.id));
+  if(!location)throw new Error("Ese ID no está entre los titulares.");
+  const [from,players]=location;
+  const idx=players.findIndex(p=>p.id===action.id);
+  const player=players[idx]!;
+  if(action.kind==="move"){
+   const to=action.color?.toLowerCase()??"";
+   if(!main.teams[to]||to===from)throw new Error("Elegí otro color válido.");
+   if(main.teams[to]!.length>=6)throw new Error("El equipo de destino ya está completo.");
+   players.splice(idx,1);main.teams[to]!.push(player);
+  }else if(action.kind==="replace"){
+   const reserve=subs?.teams[from];
+   if(!reserve?.length)throw new Error("No hay suplentes disponibles en "+from+".");
+   const next=reserve.shift()!;
+   players.splice(idx,1,next);
+   await kv.set(subKey(group),subs);
+  }else{
+   players.splice(idx,1);
+  }
+  await kv.set(key(group),main);
+  return "✅ *CAMBIO REALIZADO*\n"+(action.kind==="move"?player.name+" pasó de "+from+" a "+action.color:action.kind==="replace"?player.name+" fue reemplazado por el primer suplente de "+from:player.name+" fue retirado de "+from)+".\n\n"+render(main);
+ }finally{locks.delete(group);}
+}
 export async function getTeamSignup(group:string):Promise<Signup|null>{
  return kv.get<Signup>(key(group));
 }

@@ -4,11 +4,12 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
-import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus } from "./teamSignup.ts";
+import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus, applyRosterAction, type RosterAction } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
 const RESET="js_director_signup_reset_v1";
+const EDIT="js_director_roster_edit_v1";
 type Draft={text:string;group:string;created:number;request:string};
 const leader=(ctx:Ctx)=>!ctx.fromMe&&(isOwner(ctx)||isJSLeader(ctx));
 const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -35,6 +36,49 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
  if(/^\.destino(?:\s|$)/i.test(raw)){
   const target=await kv.get<{jid:string;name:string}>(DEST);
   await ctx.reply(target?"📍 Grupo de destino: *"+target.name+"*":"⚠️ Todavía no elegiste grupo. Escribí *.destino poner* dentro del grupo donde querés publicar.");
+  return true;
+ }
+ // Interpretación de órdenes sobre titulares: vista previa y confirmación antes de escribir.
+ const edit=await kv.get<{group:string;action:RosterAction;created:number}>(EDIT);
+ if(edit&&/^(?:si|confirmo|confirmar|dale|hazlo|hacelo|ejecuta|aplica)(?:[.! ]*)$/i.test(text)){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target||target.jid!==edit.group||Date.now()-edit.created>10*60_000){
+   await kv.delete(EDIT);await ctx.reply("⌛ La orden venció o cambió el grupo. No modifiqué nada.");return true;
+  }
+  try{
+   const result=await applyRosterAction(target.jid,edit.action);
+   await kv.delete(EDIT);
+   await ctx.reply(result);
+   await sendText(target.jid,"📢 *ACTUALIZACIÓN DE EQUIPOS*\n"+result);
+  }catch(e){await kv.delete(EDIT);await ctx.reply("⚠️ No pude aplicar el cambio: "+(e instanceof Error?e.message:"Error temporal"));}
+  return true;
+ }
+ if(edit&&/^(?:cancelar|cancela|no|dejalo|olvidalo)$/i.test(text)){
+  await kv.delete(EDIT);await ctx.reply("✅ Cambio cancelado. No modifiqué jugadores.");return true;
+ }
+ const editIntent=/\b(?:saca|sac[aá]|quita|quit[aá]|elimina|elimin[aá]|borra|borr[aá]|retira|retir[aá]|mueve|mov[eé]|pasa|pas[aá]|cambia|cambi[aá]|reemplaza|reemplaz[aá]|sustituye)\b/i.test(text)&&/\b(?:jugador|equipo|titular|id|negro|blanco|rojo|azul|suplente|lista)\b|\d{5,16}/i.test(text);
+ if(editIntent){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("📍 Primero elegí un grupo de destino.");return true;}
+  const main=await getTeamSignup(target.jid);
+  if(!main){await ctx.reply("📋 No hay una lista de titulares activa para modificar.");return true;}
+  const ids=Array.from(text.matchAll(/\b\d{5,16}\b/g),m=>m[0]);
+  const colors=Object.keys(main.teams);
+  const mentioned=colors.filter(c=>new RegExp("\b"+c+"\b").test(text));
+  const ordinal=text.match(/(?:jugador|puesto|numero|nro|posicion)\s*(?:n[uú]mero\s*)?([1-6])\b/);
+  const origin=mentioned[0];
+  let id=ids[0];
+  if(!id&&ordinal&&origin)id=main.teams[origin]?.[Number(ordinal[1])-1]?.id;
+  if(!id){await ctx.reply("🎮 Decime el *ID del jugador* que querés cambiar, o su puesto y color. Ejemplo: *sacá al jugador 3 del equipo negro*.");return true;}
+  const kind:RosterAction["kind"]=/\b(?:reemplaza|reemplaz[aá]|sustituye|suplente)\b/.test(text)?"replace":/\b(?:mueve|mov[eé]|pasa|pas[aá]|cambia|cambi[aá])\b/.test(text)?"move":"remove";
+  const current=colors.find(c=>main.teams[c]?.some(p=>p.id===id));
+  if(!current){await ctx.reply("⚠️ No encontré ese jugador en la lista de titulares.");return true;}
+  const destColor=mentioned.find(c=>c!==current);
+  if(kind==="move"&&!destColor){await ctx.reply("🎨 ¿A qué equipo lo querés pasar? Indicá el color de destino.");return true;}
+  const player=main.teams[current]!.find(p=>p.id===id)!;
+  const action:RosterAction={kind,id,color:destColor};
+  await kv.set(EDIT,{group:target.jid,action,created:Date.now()});
+  await ctx.reply("📝 *CONFIRMAR CAMBIO*\n👤 "+player.name+"\n🎮 "+id+"\n📍 Equipo actual: "+current.toUpperCase()+"\n🔧 Acción: "+(kind==="remove"?"Retirar de titulares":kind==="replace"?"Reemplazar por el primer suplente":"Pasar al equipo "+destColor?.toUpperCase())+"\n\nRespondé *confirmo* para aplicar y publicar la lista actualizada, o *cancelar*.");
   return true;
  }
  // Preguntas sobre la lista del torneo activo se contestan desde el estado persistente,
