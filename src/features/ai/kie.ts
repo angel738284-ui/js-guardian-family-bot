@@ -143,7 +143,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   const existing=await loadHistory(ctx.chat,user,leader);
   const turns=existing?.turns??[];
   const quote=ctx.message.quoted;
-  const prompt=quotedPrompt(ctx.text,quote);
+  const prompt=wantsQuotedReply(ctx.text,quote) ? quotedPrompt(ctx.text,quote) : ctx.text;
   const live = await buildLiveContext(ctx.text, turns);
   // Incluso sin presupuesto de IA, el líder puede consultar información oficial.
   const warning = limit(ctx);
@@ -154,7 +154,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
       personaTone(ctx.chat), userMemories(ctx.chat, user)
     ]);
     const reply = await kieGenerate(
-      prompt, ctx.pushName, tone, memories, quote ? [] : turns, isJSLeader(ctx), live?.facts ?? "",
+      prompt, ctx.pushName, tone, memories, wantsQuotedReply(ctx.text,quote) ? [] : turns, isJSLeader(ctx), live?.facts ?? "",
     );
     const updated:ConversationEntry={at:Date.now(),turns:[
       ...turns,
