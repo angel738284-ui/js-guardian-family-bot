@@ -117,14 +117,14 @@ function limit(ctx: Ctx): string | null {
   const now = Date.now();
   const today = new Date(now).toISOString().slice(0,10);
   if (daily.day !== today) daily = { day:today, count:0 };
-  if (daily.count >= 80) return "Alcancé el límite diario de JS Guardian. Mañana seguimos.";
+  if (daily.count >= 1000) return "Alcancé el límite diario de JS Guardian. Mañana seguimos.";
   if (active || now - lastRequest < 2000) return "Estoy ocupado. Probá en unos segundos.";
   const who = ctx.chat + ":" + normalizeId(ctx.sender);
   if (now - (userTimes.get(who) || 0) < 5_000)
     return "Para cuidar los créditos, esperá 5 segundos antes de otra pregunta.";
   const entry = hourCounts.get(ctx.chat);
   const hour = entry && now - entry.at < 3600000 ? entry : {at:now,n:0};
-  if (hour.n >= 18) return "El grupo alcanzó el límite de IA por esta hora.";
+  if (hour.n >= 200) return "El grupo alcanzó el límite de IA por esta hora.";
   hour.n++;
   hourCounts.set(ctx.chat,hour);
   userTimes.set(who,now);
