@@ -7,7 +7,7 @@ import { epinLatamProducts, epinValidate, hasEpinbyKey } from "./epinbyApi.ts";
 
 type Player={id:string;name:string;sender:string};
 type Purga={active:boolean;time:string;date:string;players:Player[];created:number};
-type Preview={group:string;time:string;date:string;created:number};
+type Preview={group:string;time:string;date:string;created:number;prize?:string;extraRules?:string[];hiddenRules?:string[]};
 const destKey="js_director_destination_v1";
 const previewKey="js_purga_preview_v1";
 const key=(group:string)=>"js_purga:"+group;
@@ -15,6 +15,8 @@ const busy=new Set<string>();
 const owner=(ctx:Ctx)=>isOwner(ctx)||isJSLeader(ctx);
 const dateAR=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const announcement=(time:string)=>"🔥 *LA PURGA DE JS FAMILY* 🔥\n\n🕗 *Hoy a las "+time+" hs (Argentina)*\n🎮 *Free Fire — La Purga*\n\n📋 *INSCRIPCIONES*\nMandá *solamente tu ID de Free Fire* en este grupo. JS Guardian verificará tu nombre y te anotará automáticamente en la lista.\n\n⚔️ *REGLAS*\n• Nadie puede matar: *solo el líder JS puede eliminar*.\n• Prohibido hacer daño de cualquier clase.\n• Prohibido usar emotes: quien use uno queda eliminado.\n• No se permite caer en lugares altos, inaccesibles o esconderse en zonas imposibles de alcanzar.\n• Prohibido usar vehículos.\n• Respeten las indicaciones del líder JS.\n\n🏆 *GANADOR:* la última persona que permanezca viva en la sala.\n\n📌 Las inscripciones quedan abiertas hasta que JS cierre la lista.";
+const draft=(p:Preview)=>{let a=announcement(p.time);if(p.prize)a=a.replace("⚔️ *REGLAS*","🎁 *PREMIO: "+p.prize+"*\n\n⚔️ *REGLAS*");if(p.hiddenRules?.length)a=a.split("\n").filter(line=>!p.hiddenRules!.some(k=>line.toLowerCase().includes(k))).join("\n");if(p.extraRules?.length)a=a.replace("🏆 *GANADOR:*",p.extraRules.map(x=>"• "+x).join("\n")+"\n\n🏆 *GANADOR:*");return a;};
+const showDraft=(p:Preview,name:string)=>"📋 *VISTA PREVIA — NO PUBLICADA*\n📍 Destino: *"+name+"*\n\n"+draft(p)+"\n\n────────────\nPedime cambios o escribí *.purga publicar* para enviar. *.purga cancelar* descarta.";
 const listing=(s:Purga)=>"🔥 *PARTICIPANTES DE LA PURGA*\n🕗 "+s.time+" hs (Argentina)\n"+(s.active?"🟢 Inscripciones abiertas":"🔒 Inscripciones cerradas")+"\n👥 *Total: "+s.players.length+"*\n\n"+(s.players.length?s.players.map((p,i)=>(i+1)+". *"+p.name.replace(/[\r\n*]/g," ").slice(0,65)+"* — "+p.id).join("\n"):"Todavía no hay anotados.");
 export async function purga(ctx:Ctx):Promise<boolean>{
  const text=ctx.text.trim();
@@ -31,7 +33,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
     const [h,m]=arg.split(":");
     const time=h!.padStart(2,"0")+":"+m;
     await kv.set(previewKey,{group:dest.jid,time,date:dateAR(),created:Date.now()} satisfies Preview);
-    await ctx.reply("📋 *VISTA PREVIA — NO PUBLICADA*\n📍 Destino: *"+dest.name+"*\n\n"+announcement(time)+"\n\n────────────\nRespondé *.purga publicar* para enviar al grupo y abrir inscripciones, o *.purga cancelar* para descartar. La vista previa vence en 30 minutos.");
+    await ctx.reply(showDraft({group:dest.jid,time,date:dateAR(),created:Date.now()},dest.name));
     return true;
    }
    if(arg==="cancelar"){await kv.delete(previewKey);await ctx.reply("❌ Vista previa descartada. No publiqué nada.");return true;}
@@ -42,7 +44,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
     const current=await kv.get<Purga>(key(dest.jid));
     if(current?.active&&current.players.length){await ctx.reply("⚠️ Ya hay inscripciones activas. Cerrá esa lista antes de publicar otra.");return true;}
     try{
-     await sendText(dest.jid,announcement(preview.time));
+     await sendText(dest.jid,draft(preview));
      await kv.set(key(dest.jid),{active:true,time:preview.time,date:preview.date,players:[],created:Date.now()} satisfies Purga);
      await kv.delete(previewKey);
      await ctx.reply("✅ *LA PURGA PUBLICADA* en "+dest.name+". Ya estoy tomando IDs. Consultá *.purga lista*.");
@@ -65,6 +67,39 @@ export async function purga(ctx:Ctx):Promise<boolean>{
    }
    await ctx.reply("🔥 *LA PURGA*\n*.purga 20:30* — Preparar anuncio\n*.purga publicar* — Publicar y abrir lista\n*.purga lista* — Ver anotados\n*.purga cerrar* — Cerrar lista\n*.purga cancelar* — Descartar vista previa");
    return true;
+  }
+  // Ediciones conversacionales del borrador, nunca de un anuncio publicado.
+  if(preview&&Date.now()-preview.created<=30*60_000&&!cmd){
+   const lower=text.toLocaleLowerCase("es");
+   const dest=await kv.get<{jid:string;name:string}>(destKey);
+   if(dest?.jid===preview.group){
+    let changed=false;
+    const clock=text.match(/(?:horario|hora|a las|para las|cambi[aá].{0,20}hora).{0,25}?([01]?\d|2[0-3]):([0-5]\d)/i);
+    if(clock){preview.time=clock[1]!.padStart(2,"0")+":"+clock[2];changed=true;}
+    const prize=text.match(/(?:premio|regal[oa]|ganador recibe|se lleva)\s*(?:es|ser[aá]|:|de|un|una|el|la|que sea|p[oó]n|agreg[aá]|pon[eé])?\s*(?:un|una|el|la)?\s*(.{3,80})$/i);
+    if(prize){
+     const value=prize[1]!.trim().replace(/[.!]+$/,"");
+     if(value&&!/^(?:es|que|del|de)$/i.test(value)){preview.prize=value;changed=true;}
+    }
+    if(/\b(?:sac[aá]|quita|quit[aá]|elimina|elimin[aá]|borra|borr[aá])\b/i.test(lower)&&/\b(?:regla|prohibici[oó]n|emotes?|veh[ií]culos?|autos?|da[nñ]o|altura)\b/i.test(lower)){
+     const topic=/emote/.test(lower)?"emotes":/veh[ií]culo|auto/.test(lower)?"vehículos":/da[nñ]o/.test(lower)?"daño":/altura|alto|inaccesible/.test(lower)?"lugares altos":null;
+     if(topic){preview.hiddenRules=[...new Set([...(preview.hiddenRules??[]),topic])];changed=true;}
+    }
+    const add=text.match(/(?:agreg[aá]|a[nñ]ad[ií]|sum[aá]|pon[eé]|inclu[ií])\s+(?:la regla (?:de |que )?|una regla (?:de |que )?|que )(.{8,150})/i);
+    if(add&&!/premio/i.test(lower)){preview.extraRules=[...(preview.extraRules??[]),add[1]!.trim()];changed=true;}
+    if(/^(?:mostrame|mostrar|ver|c[oó]mo qued[oó]|vista previa|mostr[aá]me el anuncio|qued[oó] bien)/i.test(lower)){
+     await ctx.reply(showDraft(preview,dest.name));return true;
+    }
+    if(changed){
+     await kv.set(previewKey,preview);
+     await ctx.reply("✅ *CAMBIO GUARDADO EN EL BORRADOR*\n\n"+showDraft(preview,dest.name));
+     return true;
+    }
+    if(/\b(?:cambi[aá]|modific[aá]|edit[aá]|agreg[aá]|sac[aá]|quit[aá])\b/i.test(lower)){
+     await ctx.reply("📝 No entendí qué parte cambiar. Probá: *Agregá premio Pase Booyah*, *Cambiá el horario a las 21:00*, *Sacá la regla de los emotes* o *Mostrame cómo quedó*. No modifiqué el borrador.");
+     return true;
+    }
+   }
   }
   if(preview&&/^(?:publicalo|publica|mandalo|envialo)$/i.test(text)){
    await ctx.reply("Para confirmar el anuncio de La Purga, escribí *.purga publicar*.");return true;
