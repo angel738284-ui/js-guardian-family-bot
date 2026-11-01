@@ -16,9 +16,9 @@ export function isTargetedJSInsult(message: string): boolean {
 }
 
 const replies = [
-  "A ver, corazón, acá a JS se lo respeta. Si tenés ganas de gastar energía, andá a practicar la puntería. 🧹",
-  "Ay, mi cielo, ¿viniste a jugar Free Fire o a dar un discurso? Las bromas a JS se hacen con cariño. 😏",
-  "La doña del grupo avisa: a JS me lo cuidás. Si vas a tirar una cargada, que por lo menos tenga gracia. 💅",
+  "Tranqui, podemos cargarnos entre todos, pero sin bardear de más. A JS dejalo jugar en paz 😄",
+  "Si es una joda, todo bien. Si es para pelear, mejor nos echamos unas partidas.",
+  "Ey, con buena onda. Acá venimos a jugar y pasarla bien, no a armar quilombo.",
 ];
 
 export function jsDefenseReply(ctx: Pick<Ctx, "isGroup"|"fromMe"|"senderIds"|"chat"|"text">, now=Date.now()): string | null {
