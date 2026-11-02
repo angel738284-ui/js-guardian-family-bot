@@ -16,7 +16,7 @@ const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").t
 const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)\s*[.!]*$/i;
 const cancel=/^(?:cancelar|cancela|no lo mandes|descartar|olvidalo)\s*[.!]*$/i;
 const requests=/(?:crea|creame|arm[aá]|armame|prepar[aá]|preparame|hac[eé]|haceme|haz|redact[aá]|redactame|organiza|organizame|publica|manda|envia|anuncia)/;
-const topics=/(?:torneo|6\s*(?:vs|v|contra|x)\s*6|enfrentamiento|equipo|lista|anuncio|aviso|comunicado|mensaje)/;
+const topics=/(?:torneo|6\s*(?:vs|v|contra|x)\s*6|enfrentamiento|equipo|lista|anuncio|aviso|comunicado|mensaje|dinamica|evento|juego|purga)/;
 
 export async function privateDirector(ctx:Ctx):Promise<boolean>{
  if(!leader(ctx))return false;
@@ -173,6 +173,21 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   }catch{await ctx.reply("⚠️ No pude publicar el anuncio. Revisá que el bot siga en el grupo y probá otra vez.");}
   return true;
  }
+ if(pending&&Date.now()-pending.created<=30*60_000&& !raw.startsWith(".") && !confirm.test(text) && !cancel.test(text)){
+  const correction=/\b(?:no[, ]|asi no|no es|no era|corregi|corregime|cambia|cambiame|modifica|mejor|agrega|quita|saca|en vez|quise decir|ultimo|torreta|ganador|premio|horario|regla|pone|pon[eé]|falta)\b/i.test(text);
+  if(correction){
+   if(!kieConfigured()){await ctx.reply("⚠️ La IA no está disponible para corregir el borrador.");return true;}
+   try{
+    const revised=await kieGenerate(
+     "Estás editando un BORRADOR de anuncio de Free Fire. Texto original del dueño (fuente de verdad):\n"+pending.request+"\n\nBORRADOR ACTUAL:\n"+pending.text+"\n\nCORRECCIÓN NUEVA DEL DUEÑO:\n"+raw+"\n\nDevolvé SOLAMENTE el anuncio completo corregido. Respetá literalmente mecánicas, objetos y condiciones de victoria. TORRETA no es TORRE. Si el dueño dice que gana el ÚLTIMO que le dé a la TORRETA, jamás cambies eso por el último en darle a una torre. No inventes reglas, premios ni jugadores. Conservá las partes no corregidas. Español argentino, formato WhatsApp.",
+     "JS",2,[],[],true
+    );
+    await kv.set(DRAFT,{...pending,text:revised,created:Date.now()});
+    await ctx.reply("✏️ *BORRADOR CORREGIDO — NO PUBLICADO*\n\n"+revised+"\n\nRespondé *publicalo* para enviarlo o seguí corrigiéndome.");
+   }catch{await ctx.reply("⚠️ No pude corregir el borrador ahora. Sigue guardada la versión anterior.");}
+   return true;
+  }
+ }
  if(!requests.test(text)||!topics.test(text))return false;
  const target=await kv.get<{jid:string;name:string}>(DEST);
  if(!target){await ctx.reply("📍 Primero elegí el grupo donde querés publicar: entrá a ese grupo y mandá *.destino poner*. Después volvé acá y pedime el anuncio.");return true;}
@@ -181,7 +196,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
  try{
   const draft=await kieGenerate(
    "Redactá SOLO un mensaje de WhatsApp listo para publicar en un grupo de Free Fire. Pedido del dueño: "+raw+
-   "\nReglas: español argentino, claro, ordenado, con emojis moderados y títulos con *asteriscos* de WhatsApp. Si pide un torneo 6 vs 6, hacé dos listas de seis lugares numerados por equipo; no inventes jugadores, fecha, premio, reglas ni datos no proporcionados. Si pide Negro vs Rojo, respetá esos nombres. No digas que creaste un torneo real ni que ya se publicó. No incluyas explicaciones fuera del anuncio.",
+   "\nReglas: español argentino, claro, ordenado, con emojis moderados y títulos con *asteriscos* de WhatsApp. Si pide un torneo 6 vs 6, hacé dos listas de seis lugares numerados por equipo; no inventes jugadores, fecha, premio, reglas ni datos no proporcionados. Si pide Negro vs Rojo, respetá esos nombres. Diferenciá TORRETA de TORRE y conservá literalmente quién gana, incluso si es el último en dispararle a la torreta. Si una regla no está clara, no la inventes. No digas que creaste un torneo real ni que ya se publicó. No incluyas explicaciones fuera del anuncio.",
    "JS",2,[],[],true
   );
   await kv.set(DRAFT,{text:draft,group:target.jid,created:Date.now(),request:raw} satisfies Draft);
