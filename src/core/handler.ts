@@ -23,6 +23,7 @@ import { tournamentCommand } from "../features/jsTorneosBot.ts";
 import { canToggleGroup, handleGroupPermission } from "../features/groupDelegation.ts";
 import { sendJsCommands } from "../features/jsCommandCatalog.ts";
 import { privateDirector } from "../features/privateDirector.ts";
+import { routeLeaderIntent } from "../features/ai/intentRouter.ts";
 import { teamSignup } from "../features/teamSignup.ts";
 import { purga } from "../features/purga.ts";
 import { eventSignup } from "../features/eventSignup.ts";
@@ -103,6 +104,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await eventSignup(ctx)) return;
     if (await purga(ctx)) return;
     if (await privateDirector(ctx)) return;
+    if (await routeLeaderIntent(ctx)) return;
     if (await sendJsCommands(ctx)) return;
     if (await handleGroupPermission(ctx)) return;
 
