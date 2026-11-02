@@ -5,7 +5,7 @@ import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
 import { eventChecklist } from "./ai/intelligent.ts";
-import { openEventSignup } from "./eventSignup.ts";
+import { openEventSignup, manageEventSignup } from "./eventSignup.ts";
 import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus, applyRosterAction, type RosterAction } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
@@ -39,6 +39,32 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   const target=await kv.get<{jid:string;name:string}>(DEST);
   await ctx.reply(target?"📍 Grupo de destino: *"+target.name+"*":"⚠️ Todavía no elegiste grupo. Escribí *.destino poner* dentro del grupo donde querés publicar.");
   return true;
+ }
+ // Acciones administrativas explícitas, exclusivamente en el chat privado del dueño verificado.
+ const adminKey="js_director_event_admin_pending_v1";
+ const adminPending=await kv.get<{group:string;action:"delete";created:number}>(adminKey);
+ if(adminPending&&/^(?:confirmo|confirmar|si|dale|hacelo|borralo)[.! ]*$/i.test(text)){
+  await kv.delete(adminKey);
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target||target.jid!==adminPending.group||Date.now()-adminPending.created>5*60_000){await ctx.reply("La confirmación venció o cambió el grupo. No borré nada.");return true;}
+  await ctx.reply("✅ "+await manageEventSignup(target.jid,"delete"));return true;
+ }
+ if(adminPending&&/^(?:cancelar|cancela|no|dejalo|olvidalo)$/i.test(text)){
+  await kv.delete(adminKey);await ctx.reply("Cancelado. No borré la dinámica.");return true;
+ }
+ const eventWords=/\b(?:dinamica|evento|torneo|inscripciones)\b/;
+ const deleteEvent=/\b(?:borra|borrar|borralo|elimina|eliminar|eliminalo|anula|anular)\b/;
+ const closeEvent=/\b(?:cerra|cerrar|cierra|detene|detener|para|parar)\b/;
+ const openEvent=/\b(?:abri|abrir|abre|reanuda|reanudar)\b/;
+ if(eventWords.test(text)&&(deleteEvent.test(text)||closeEvent.test(text)||openEvent.test(text))){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("Primero elegí el grupo con *.destino poner*.");return true;}
+  if(deleteEvent.test(text)){
+   await kv.set(adminKey,{group:target.jid,action:"delete",created:Date.now()});
+   await ctx.reply("⚠️ ¿Confirmás eliminar la dinámica y todos sus anotados del registro de Guardian en *"+target.name+"*? No se borrarán torneos de la app JS Torneos. Respondé *confirmo* o *cancelar* (5 minutos).");return true;
+  }
+  const action=closeEvent.test(text)?"close":"open";
+  await ctx.reply("✅ "+await manageEventSignup(target.jid,action));return true;
  }
  // Interpretación de órdenes sobre titulares: vista previa y confirmación antes de escribir.
  const edit=await kv.get<{group:string;action:RosterAction;created:number}>(EDIT);

@@ -14,6 +14,19 @@ export async function openEventSignup(group:string,title:string):Promise<{ok:boo
  await kv.set(key(group),{active:true,title:title.slice(0,100),date:today(),players:[]} satisfies Event);
  return {ok:true,message:"Inscripciones abiertas para "+title};
 }
+export async function manageEventSignup(group:string,action:"status"|"close"|"open"|"delete"):Promise<string>{
+ const state=await kv.get<Event>(key(group));
+ if(!state)return "No hay una dinámica registrada en ese grupo.";
+ if(action==="delete"){
+  await kv.delete(key(group));
+  return "Eliminé la dinámica «"+state.title+"» y su lista de "+state.players.length+" participantes del registro de inscripciones de Guardian. No eliminé torneos de JS Torneos ni mensajes de WhatsApp.";
+ }
+ if(action==="open"&&state.date!==today())return "La dinámica es de otro día. No puedo reabrirla.";
+ if(action==="close"||action==="open"){
+  state.active=action==="open";await kv.set(key(group),state);
+ }
+ return "Dinámica: "+state.title+". "+state.players.length+" anotados. Inscripciones "+(state.active?"abiertas":"cerradas")+".";
+}
 export async function eventSignup(ctx:Ctx):Promise<boolean>{
  const text=ctx.text.trim();
  const isLeader=isOwner(ctx)||isJSLeader(ctx);
