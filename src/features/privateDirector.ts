@@ -15,7 +15,7 @@ const EDIT="js_director_roster_edit_v1";
 type Draft={text:string;group:string;created:number;request:string;revisions?:string[]};
 const leader=(ctx:Ctx)=>!ctx.fromMe&&(isOwner(ctx)||isJSLeader(ctx));
 const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)(?:\s+y\s+(?:empeza|empieza|comenza|comienza|inicia|abr[ií]|ponete|pon[eé])\s+a?\s*(?:tomar|anotar|recibir)?\s*(?:los?\s+)?(?:ids?|inscripciones))?\s*[.!]*$/i;
+const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)(?:\s+y\s+(?:(?:empeza|empieza|comenza|comienza|inicia|abri|ponete|pone)\s+a?\s*)?(?:tomar|toma|anotar|anota|recibir|recibi)\s*(?:los?\s+)?(?:ids?|inscripciones|lista))?\s*[.!]*$/i;
 const cancel=/^(?:cancelar|cancela|no lo mandes|descartar|olvidalo)\s*[.!]*$/i;
 const requests=/(?:crea|creame|arm[aá]|armes|armame|prepar[aá]|preparame|hac[eé]|haceme|haz|redact[aá]|redactame|organiza|organizame|publica|manda|envia|anuncia)/;
 const topics=/(?:torneo|6\s*(?:vs|v|contra|x)\s*6|enfrentamiento|equipo|lista|anuncio|aviso|comunicado|mensaje|dinamica|evento|juego|purga)/;
@@ -174,6 +174,17 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   return true;
  }
  if(reset && cancel.test(text)){await kv.delete(RESET);await ctx.reply("✅ Cancelado. Conservé la lista anterior.");return true;}
+ // Publicación solicitada citando el anuncio: preparar una confirmación real, nunca delegar a la IA.
+ const quotedPublish=/^(?:publicalo|publica|mandalo|envialo)(?:\s+y\s+(?:toma|tomar|anota|anotar|recibi|recibir)\s*(?:los?\s+)?(?:ids?|inscripciones|lista))?[.! ]*$/i;
+ const existingDraft=await kv.get<Draft>(DRAFT);
+ if(quotedPublish.test(text)&&!existingDraft){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("Elegí primero el grupo con *.destino poner*.");return true;}
+  const quoted=ctx.message.quoted?.text?.trim();
+  if(!quoted||quoted.length<40){await ctx.reply("No encuentro un borrador guardado. Respondé al anuncio completo con *publicalo y toma ID* para prepararlo.");return true;}
+  await kv.set(DRAFT,{text:quoted,group:target.jid,created:Date.now(),request:raw+" dinamica",revisions:[]} satisfies Draft);
+  await ctx.reply("📋 Tengo el anuncio citado y el destino *"+target.name+"*. Respondé *confirmo* para publicarlo"+(/\b(?:id|lista|inscripciones)\b/.test(text)?" y abrir inscripciones por ID":"")+", o *cancelar*.");return true;
+ }
  const pending=await kv.get<Draft>(DRAFT);
  if(cancel.test(text)&&pending){
   await kv.set(DRAFT,null);
@@ -188,7 +199,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   if(!dest||dest.jid!==pending.group){await ctx.reply("⚠️ Cambió el grupo de destino. Volvé a preparar el anuncio para evitar enviarlo al grupo equivocado.");return true;}
   try{
    const signupRequested=/\b(?:anot[aá]|anotar|tom[aá]|tomar|inscripci[oó]n|inscripciones|recib[ií]|recibir)\b.{0,25}\b(?:ids?|jugadores|participantes)\b|\b(?:ids?|jugadores)\b.{0,25}\b(?:anot[aá]|anotar|inscripci[oó]n)\b/i.test(normalized(pending.request+" "+raw));
-   const isEvent=/\b(?:dinamica|evento|juego|torreta)\b/i.test(normalized(pending.request));
+   const isEvent=/\b(?:dinamica|evento|juego|torreta|toma id|tomar id)\b/i.test(normalized(pending.request+" "+pending.text));
    const eventPlan=isEvent&&signupRequested?await openEventSignup(dest.jid,"Dinámica JS"):null;
    if(eventPlan&&!eventPlan.ok){await ctx.reply("⚠️ "+eventPlan.message+" No publiqué el anuncio para evitar abrir otra lista.");return true;}
    await sendText(dest.jid,pending.text);
