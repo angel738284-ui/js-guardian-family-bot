@@ -59,7 +59,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
   const normalCommand = splitCommand(message.text, ".");
   const legacyCommand = normalCommand ? null : splitCommand(message.text, config.prefix);
   const slashCommand = normalCommand || legacyCommand ? null : splitCommand(message.text, "/");
-  const allowedSlashes = ["privados", "reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "caracter", "recordame", "recuerdos", "olvidame"];
+  const allowedSlashes = ["privados", "reglas", "kick", "warn", "unwarn", "warnings", "ban", "desban", "unban", "permitirlink", "quitarlink", "links", "guardian", "cerebro", "sanciones", "menujs", "promord", "promosrd", "promo", "precios", "torneos", "cargar", "confirmarcarga", "cancelarcarga", "estadocarga", "saldoepinby", "catalogoepin", "adminscomandos", "kie", "habla", "nohables", "caracter", "recordame", "recuerdos", "olvidame"];
   const translate = (name:string) => ({ ban:"banjs", desban:"desbanjs", unban:"desbanjs", warnings:"warns", links:"linksjs" } as Record<string,string>)[name] ?? name;
   const translated = slashCommand && allowedSlashes.includes(slashCommand.name)
     ? { ...slashCommand, name: translate(slashCommand.name) } : null;

@@ -10,7 +10,7 @@ const CUSTOM = [
   "/guardian contenido on|off — Analiza stickers para detectar contenido sexual explícito o gore; la IA puede equivocarse.",
   "/guardian stickers on|off — Protección contra spam de stickers; /guardian links on|off — protección contra enlaces.",
   "/cerebro on|off, /cerebro ia on|off, /cerebro modo firme|suave, /cerebro borrar on|off, /cerebro diagnostico — Moderación y diagnóstico.",
-  "/kie on|off|estado — Configura las respuestas de Kie AI.",
+  ".habla — Activa las respuestas de Guardian; .nohables — Las desactiva.",
 ];
 export function commandKnowledge(): string {
  const registered=allCommands().filter(c=>!c.hidden).map(c=>{

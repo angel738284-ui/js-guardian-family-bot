@@ -171,7 +171,7 @@ command({
     "/estadocarga — Estado del último pedido\n"+
     "/adminscomandos on|off — Comandos básicos para administradores\n"+
     "/kie — Estado de la IA GPT-6 Luna\n"+
-    "/kie on|off — Activar o apagar IA en este chat\n"+
+    ".habla / .nohables — Activar o apagar la charla de Guardian\n"+
     "/caracter 0|1|2|3 — Ajustar estilo del bot\n"+
     "/recordame texto — Guardar tu apodo o gusto\n"+
     "/recuerdos — Consultar tus recuerdos\n"+
