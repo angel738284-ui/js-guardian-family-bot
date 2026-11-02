@@ -64,7 +64,7 @@ command({
 });
 
 command({
-  name:"estadocarga",category:"owner",permission:"owner",
+  name:"estadocarga",aliases:["es"],category:"owner",permission:"owner",
   description:"Consultar el último pedido o una confirmación pendiente",
   run:async(ctx)=>{
     if (!await guard(ctx)) return;
