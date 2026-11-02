@@ -21,6 +21,22 @@ const listing=(s:Purga)=>"🔥 *PARTICIPANTES DE LA PURGA*\n🕗 "+s.time+" hs (
 export async function purga(ctx:Ctx):Promise<boolean>{
  const text=ctx.text.trim();
  const cmd=text.match(/^\.purga(?:\s+(.*))?$/i);
+ const toggle=text.match(/^\.(deja\s+de\s+anotar|sigue\s+anotando)$/i);
+ if(toggle){
+  if(!owner(ctx)){await ctx.reply("⛔ Solo JS puede abrir o cerrar las inscripciones.");return true;}
+  const open=/^sigue/i.test(toggle[1]!);
+  const dest=ctx.isGroup?ctx.chat:(await kv.get<{jid:string;name:string}>(destKey))?.jid;
+  if(!dest){await ctx.reply("📍 No hay un grupo de destino configurado.");return true;}
+  const s=await kv.get<Purga>(key(dest));
+  if(!s){await ctx.reply("📋 No hay una Purga configurada. Primero creá el evento.");return true;}
+  if(s.active===open){await ctx.reply(open?"🟢 Las inscripciones ya estaban abiertas.":"🔒 Las inscripciones ya estaban cerradas.");return true;}
+  s.active=open;await kv.set(key(dest),s);
+  const notice=open?"🟢 *INSCRIPCIONES REABIERTAS*\nGuardian vuelve a anotar IDs para La Purga.":"🔒 *INSCRIPCIONES CERRADAS*\nGuardian ya no anotará más IDs para La Purga.";
+  if(ctx.chat===dest)await ctx.reply(notice+"\n\n"+listing(s));
+  else{await ctx.reply("✅ Cambio aplicado al grupo de La Purga.\n"+notice);await sendText(dest,notice);}
+  return true;
+ }
+
  if(!ctx.isGroup&&owner(ctx)){
   const preview=await kv.get<Preview>(previewKey);
   if(cmd){
@@ -123,11 +139,12 @@ export async function purga(ctx:Ctx):Promise<boolean>{
  if(!/^\d{5,16}$/.test(text))return false;
  const s=await kv.get<Purga>(key(ctx.chat));
  if(!s?.active)return false;
+ if(s.date!==dateAR())return false;
  if(busy.has(ctx.chat)){await ctx.reply("⏳ Estoy verificando otro ID. Intentá nuevamente en unos segundos.");return true;}
  busy.add(ctx.chat);
  try{
   const fresh=await kv.get<Purga>(key(ctx.chat));
-  if(!fresh?.active){await ctx.reply("🔒 Las inscripciones ya están cerradas.");return true;}
+  if(!fresh?.active||fresh.date!==dateAR()){await ctx.reply("🔒 Las inscripciones ya están cerradas o el evento es de otra fecha.");return true;}
   if(fresh.players.some(p=>p.id===text||p.sender===ctx.sender)){await ctx.reply("⚠️ Ese ID o número de WhatsApp ya está anotado en La Purga.");return true;}
   if(!hasEpinbyKey())throw new Error("La verificación de Epinby no está disponible.");
   const products=await epinLatamProducts();
