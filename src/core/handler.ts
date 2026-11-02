@@ -30,6 +30,7 @@ import { groupRulesInfo } from "../features/groupRulesInfo.ts";
 import { recordSocialContext, socialCommand } from "../features/ai/groupSocial.ts";
 import { handleEpinYesNo } from "../features/epinYesNo.ts";
 import { socialExtras } from "../features/ai/socialExtras.ts";
+import { naturalCommand } from "../features/ai/natural.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -93,6 +94,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await runBrainGuard(ctx)) return;
 
     if (await handleEpinYesNo(ctx)) return;
+    if (await naturalCommand(ctx)) return;
     if (await socialExtras(ctx)) return;
     if (await socialCommand(ctx)) return;
     if (await groupRulesInfo(ctx)) return;
