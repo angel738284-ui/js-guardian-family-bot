@@ -29,6 +29,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
   if(!dest){await ctx.reply("📍 No hay un grupo de destino configurado.");return true;}
   const s=await kv.get<Purga>(key(dest));
   if(!s){await ctx.reply("📋 No hay una Purga configurada. Primero creá el evento.");return true;}
+  if(open&&s.date!==dateAR()){await ctx.reply("📅 Esa Purga es de otra fecha ("+s.date+"). Para anotar hoy, creá una nueva Purga; no voy a reabrir un evento viejo.");return true;}
   if(s.active===open){await ctx.reply(open?"🟢 Las inscripciones ya estaban abiertas.":"🔒 Las inscripciones ya estaban cerradas.");return true;}
   s.active=open;await kv.set(key(dest),s);
   const notice=open?"🟢 *INSCRIPCIONES REABIERTAS*\nGuardian vuelve a anotar IDs para La Purga.":"🔒 *INSCRIPCIONES CERRADAS*\nGuardian ya no anotará más IDs para La Purga.";
