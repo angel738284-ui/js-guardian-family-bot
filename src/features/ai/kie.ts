@@ -82,9 +82,10 @@ export async function kieGenerate(
   images: Array<{mimetype:string;data:string}> = [],
   naturalStyle = "",
   requestedEffort?:ReasoningEffort,
+  privateLeaderMode=false,
 ): Promise<string> {
-  const model = process.env.KIE_MODEL || "gpt-6-luna";
-  const effort=requestedEffort??selectReasoning(question,verifiedLeader);
+  const model = privateLeaderMode ? (process.env.KIE_PRIVATE_LEADER_MODEL || "gpt-6.1-sol") : (process.env.KIE_MODEL || "gpt-6-luna");
+  const effort=privateLeaderMode ? "high" : (requestedEffort??selectReasoning(question,verifiedLeader));
   const historyLimit=verifiedLeader?12:8;
   const instructions = [
     PERSONALITY,
@@ -172,7 +173,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
     const media=await mediaContext(ctx);
     const mode=await naturalMode(ctx.chat);
     const reply = await kieGenerate(
-      media.text ? prompt+"\n"+media.text : prompt, ctx.pushName, tone, memories, wantsQuotedReply(ctx.text,quote) ? [] : turns, isJSLeader(ctx), live?.facts ?? "", playerName.name ?? "", groupContext(ctx)+"\n"+await jokeContext(ctx.chat), media.images, naturalInstructions(mode,ctx.text),
+      media.text ? prompt+"\n"+media.text : prompt, ctx.pushName, tone, memories, wantsQuotedReply(ctx.text,quote) ? [] : turns, isJSLeader(ctx), live?.facts ?? "", playerName.name ?? "", groupContext(ctx)+"\n"+await jokeContext(ctx.chat), media.images, naturalInstructions(mode,ctx.text), undefined, leader&&!ctx.isGroup,
     );
     const updated:ConversationEntry={at:Date.now(),turns:[
       ...turns,
