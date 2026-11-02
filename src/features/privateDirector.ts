@@ -4,13 +4,14 @@ import { isJSLeader } from "./ai/leaderIdentity.ts";
 import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
+import { eventChecklist } from "./ai/intelligent.ts";
 import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus, applyRosterAction, type RosterAction } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
 const DRAFT="js_director_draft_v1";
 const RESET="js_director_signup_reset_v1";
 const EDIT="js_director_roster_edit_v1";
-type Draft={text:string;group:string;created:number;request:string};
+type Draft={text:string;group:string;created:number;request:string;revisions?:string[]};
 const leader=(ctx:Ctx)=>!ctx.fromMe&&(isOwner(ctx)||isJSLeader(ctx));
 const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)\s*[.!]*$/i;
@@ -179,10 +180,10 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
    if(!kieConfigured()){await ctx.reply("⚠️ La IA no está disponible para corregir el borrador.");return true;}
    try{
     const revised=await kieGenerate(
-     "Estás editando un BORRADOR de anuncio de Free Fire. Texto original del dueño (fuente de verdad):\n"+pending.request+"\n\nBORRADOR ACTUAL:\n"+pending.text+"\n\nCORRECCIÓN NUEVA DEL DUEÑO:\n"+raw+"\n\nDevolvé SOLAMENTE el anuncio completo corregido. Respetá literalmente mecánicas, objetos y condiciones de victoria. TORRETA no es TORRE. Si el dueño dice que gana el ÚLTIMO que le dé a la TORRETA, jamás cambies eso por el último en darle a una torre. No inventes reglas, premios ni jugadores. Conservá las partes no corregidas. Español argentino, formato WhatsApp.",
-     "JS",2,[],[],true
+     "Estás editando un BORRADOR de anuncio de Free Fire. "+eventChecklist(pending.request,raw)+"\nTexto original del dueño (fuente de verdad):\n"+pending.request+"\n\nBORRADOR ACTUAL:\n"+pending.text+"\n\nCORRECCIONES PREVIAS EN ORDEN:\n"+(pending.revisions??[]).map((x,i)=>(i+1)+". "+x).join("\n")+"\n\nCORRECCIÓN NUEVA DEL DUEÑO:\n"+raw+"\n\nDevolvé SOLAMENTE el anuncio completo corregido. Respetá literalmente mecánicas, objetos y condiciones de victoria. TORRETA no es TORRE. Si el dueño dice que gana el ÚLTIMO que le dé a la TORRETA, jamás cambies eso por el último en darle a una torre. No inventes reglas, premios ni jugadores. Conservá las partes no corregidas. Español argentino, formato WhatsApp.",
+     "JS",2,[],[],true,"","","",[],"","high"
     );
-    await kv.set(DRAFT,{...pending,text:revised,created:Date.now()});
+    await kv.set(DRAFT,{...pending,text:revised,revisions:[...(pending.revisions??[]),raw].slice(-8),created:Date.now()});
     await ctx.reply("✏️ *BORRADOR CORREGIDO — NO PUBLICADO*\n\n"+revised+"\n\nRespondé *publicalo* para enviarlo o seguí corrigiéndome.");
    }catch{await ctx.reply("⚠️ No pude corregir el borrador ahora. Sigue guardada la versión anterior.");}
    return true;
@@ -195,9 +196,9 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
  await ctx.reply("📝 Voy a preparar el borrador. No publicaré nada sin tu confirmación.");
  try{
   const draft=await kieGenerate(
-   "Redactá SOLO un mensaje de WhatsApp listo para publicar en un grupo de Free Fire. Pedido del dueño: "+raw+
+   "Redactá SOLO un mensaje de WhatsApp listo para publicar en un grupo de Free Fire. "+eventChecklist(raw)+"\nPedido del dueño: "+raw+
    "\nReglas: español argentino, claro, ordenado, con emojis moderados y títulos con *asteriscos* de WhatsApp. Si pide un torneo 6 vs 6, hacé dos listas de seis lugares numerados por equipo; no inventes jugadores, fecha, premio, reglas ni datos no proporcionados. Si pide Negro vs Rojo, respetá esos nombres. Diferenciá TORRETA de TORRE y conservá literalmente quién gana, incluso si es el último en dispararle a la torreta. Si una regla no está clara, no la inventes. No digas que creaste un torneo real ni que ya se publicó. No incluyas explicaciones fuera del anuncio.",
-   "JS",2,[],[],true
+   "JS",2,[],[],true,"","","",[],"","high"
   );
   await kv.set(DRAFT,{text:draft,group:target.jid,created:Date.now(),request:raw} satisfies Draft);
   await ctx.reply("📋 *VISTA PREVIA*\n📍 Destino: *"+target.name+"*\n\n"+draft+"\n\n────────────\nRespondé *publicalo* para enviarlo, o *cancelar* para descartarlo. El borrador vence en 30 minutos.");

@@ -13,6 +13,7 @@ import { groupContext, shouldJoinSocially } from "./groupSocial.ts";
 import { jokeContext } from "./socialExtras.ts";
 import sharp from "sharp";
 import { naturalMode, naturalInstructions } from "./natural.ts";
+import { selectReasoning, type ReasoningEffort } from "./intelligent.ts";
 
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
@@ -32,7 +33,7 @@ async function loadHistory(chat:string,user:string,leader:boolean):Promise<Conve
   if(stored)await kv.delete(historyStoreKey(chat,user));
   return null;
  }
- const safe={at:stored.at,turns:stored.turns.slice(-12).filter(t=>(t.role==="user"||t.role==="assistant")&&typeof t.content==="string")};
+ const safe={at:stored.at,turns:stored.turns.slice(-16).filter(t=>(t.role==="user"||t.role==="assistant")&&typeof t.content==="string")};
  conversationHistory.set(k,safe);
  return safe;
 }
@@ -80,8 +81,11 @@ export async function kieGenerate(
   socialContext = "",
   images: Array<{mimetype:string;data:string}> = [],
   naturalStyle = "",
+  requestedEffort?:ReasoningEffort,
 ): Promise<string> {
   const model = process.env.KIE_MODEL || "gpt-6-luna";
+  const effort=requestedEffort??selectReasoning(question,verifiedLeader);
+  const historyLimit=verifiedLeader?12:8;
   const instructions = [
     PERSONALITY,
     commandKnowledge(),
@@ -100,10 +104,10 @@ export async function kieGenerate(
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model, stream:false, reasoning:{effort:"low"}, max_output_tokens:400,
+      model, stream:false, reasoning:{effort}, max_output_tokens:effort==="high"?1100:effort==="medium"?700:400,
       input:[
         {role:"system",content:instructions},
-        ...turns.slice(-6).map(t => ({role:t.role,content:t.content.slice(0,800)})),
+        ...turns.slice(-historyLimit).map(t => ({role:t.role,content:t.content.slice(0,800)})),
         {role:"user",content:images.length ? [{type:"input_text",text:question.slice(0,1850)},...images.map(i=>({type:"input_image",image_url:"data:"+i.mimetype+";base64,"+i.data}))] : question.slice(0,1850)},
       ],
     }),
@@ -174,7 +178,7 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
       ...turns,
       {role:"user" as const,content:ctx.text.slice(0,700)+(quote?.text ? " [Mensaje citado: "+quote.text.slice(0,350)+"]" : "")},
       {role:"assistant" as const,content:reply},
-    ].slice(leader?-12:-6)};
+    ].slice(leader?-16:-10)};
     conversationHistory.set(historyKey,updated);
     if(leader)await kv.set(historyStoreKey(ctx.chat,user),updated);
     if (conversationHistory.size > 150)
