@@ -27,6 +27,7 @@ import { routeLeaderIntent } from "../features/ai/intentRouter.ts";
 import { teamSignup } from "../features/teamSignup.ts";
 import { purga } from "../features/purga.ts";
 import { eventSignup } from "../features/eventSignup.ts";
+import { numberedLists } from "../features/listRegistry.ts";
 import { clanInfo } from "../features/clanInfo.ts";
 import { groupRulesInfo } from "../features/groupRulesInfo.ts";
 import { recordSocialContext, socialCommand } from "../features/ai/groupSocial.ts";
@@ -101,6 +102,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (await socialCommand(ctx)) return;
     if (await groupRulesInfo(ctx)) return;
     if (await clanInfo(ctx)) return;
+    if (await numberedLists(ctx)) return;
     if (await eventSignup(ctx)) return;
     if (await purga(ctx)) return;
     if (await privateDirector(ctx)) return;
