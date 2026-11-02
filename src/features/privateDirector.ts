@@ -40,6 +40,18 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   await ctx.reply(target?"📍 Grupo de destino: *"+target.name+"*":"⚠️ Todavía no elegiste grupo. Escribí *.destino poner* dentro del grupo donde querés publicar.");
   return true;
  }
+ // Elegir un anuncio citado no significa consultar una dinámica ya registrada.
+ const selectedQuoted=/^(?:(?:esta|este|esa|ese)(?:\s+(?:hagamosla|hagamoslo|hacemos|elegimos|vamos\s+con\s+esta|vamos\s+con\s+ese|quiero|usamos))?|hagamos\s+esta|vamos\s+con\s+esta|esta\s+hagamosla|esa\s+hagamosla)[.! ]*$/i;
+ if(selectedQuoted.test(text)&&ctx.message.quoted?.text?.trim()){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("Elegí el grupo con *.destino poner* antes de seleccionar la dinámica.");return true;}
+  const quoted=ctx.message.quoted.text.trim();
+  if(quoted.length<40){await ctx.reply("El mensaje citado es demasiado corto. Citá el anuncio completo de la dinámica.");return true;}
+  await kv.delete(RESET);
+  await kv.set(DRAFT,{text:quoted,group:target.jid,created:Date.now(),request:"publicar dinamica y tomar lista de IDs",revisions:[]} satisfies Draft);
+  await ctx.reply("🎮 *DINÁMICA SELECCIONADA*\n📍 Destino: *"+target.name+"*\n\nTomé el anuncio que citaste como borrador. Todavía no lo publiqué ni modifiqué ninguna lista anterior.\n\nRespondé *publicalo y toma ID* para publicar y abrir inscripciones nuevas, *publicalo* para publicar sin inscripciones, o *cancelar*.");
+  return true;
+ }
  // Acciones administrativas explícitas, exclusivamente en el chat privado del dueño verificado.
  const adminKey="js_director_event_admin_pending_v1";
  const adminPending=await kv.get<{group:string;action:"delete";created:number}>(adminKey);
@@ -216,7 +228,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   const dest=await kv.get<{jid:string;name:string}>(DEST);
   if(!dest||dest.jid!==pending.group){await ctx.reply("⚠️ Cambió el grupo de destino. Volvé a preparar el anuncio para evitar enviarlo al grupo equivocado.");return true;}
   try{
-   const signupRequested=/\b(?:anot[aá]|anotar|tom[aá]|tomar|inscripci[oó]n|inscripciones|recib[ií]|recibir)\b.{0,25}\b(?:ids?|jugadores|participantes)\b|\b(?:ids?|jugadores)\b.{0,25}\b(?:anot[aá]|anotar|inscripci[oó]n)\b/i.test(normalized(pending.request+" "+raw));
+   const signupRequested=/\b(?:anot[aá]|anotar|tom[aá]|tomar|inscripci[oó]n|inscripciones|recib[ií]|recibir)\b.{0,25}\b(?:ids?|jugadores|participantes|lista)\b|\b(?:ids?|jugadores|lista)\b.{0,25}\b(?:anot[aá]|anotar|inscripci[oó]n|tom[aá]|tomar)\b/i.test(normalized(pending.request+" "+raw));
    const isEvent=/\b(?:dinamica|evento|juego|torreta|toma id|tomar id)\b/i.test(normalized(pending.request+" "+pending.text));
    const eventPlan=isEvent&&signupRequested?await openEventSignup(dest.jid,"Dinámica JS"):null;
    if(eventPlan&&!eventPlan.ok){await ctx.reply("⚠️ "+eventPlan.message+" No publiqué el anuncio para evitar abrir otra lista.");return true;}
