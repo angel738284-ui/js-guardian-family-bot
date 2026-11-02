@@ -5,6 +5,7 @@ import { kv } from "../db/kv.ts";
 import { sendText } from "../bot/client.ts";
 import { kieConfigured, kieGenerate } from "./ai/kie.ts";
 import { eventChecklist } from "./ai/intelligent.ts";
+import { openEventSignup } from "./eventSignup.ts";
 import { activateTeamSignup, getTeamSignup, getTeamSignupStatus, startSubstituteSignup, getSubstituteStatus, applyRosterAction, type RosterAction } from "./teamSignup.ts";
 
 const DEST="js_director_destination_v1";
@@ -14,9 +15,9 @@ const EDIT="js_director_roster_edit_v1";
 type Draft={text:string;group:string;created:number;request:string;revisions?:string[]};
 const leader=(ctx:Ctx)=>!ctx.fromMe&&(isOwner(ctx)||isJSLeader(ctx));
 const normalized=(s:string)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
-const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)\s*[.!]*$/i;
+const confirm=/^(?:si[,! ]*)?(?:publicalo|publica|mandalo|envialo|enviar|confirmo|confirmar|dale[,! ]*mandalo)(?:\s+y\s+(?:empeza|empieza|comenza|comienza|inicia|abr[ií]|ponete|pon[eé])\s+a?\s*(?:tomar|anotar|recibir)?\s*(?:los?\s+)?(?:ids?|inscripciones))?\s*[.!]*$/i;
 const cancel=/^(?:cancelar|cancela|no lo mandes|descartar|olvidalo)\s*[.!]*$/i;
-const requests=/(?:crea|creame|arm[aá]|armame|prepar[aá]|preparame|hac[eé]|haceme|haz|redact[aá]|redactame|organiza|organizame|publica|manda|envia|anuncia)/;
+const requests=/(?:crea|creame|arm[aá]|armes|armame|prepar[aá]|preparame|hac[eé]|haceme|haz|redact[aá]|redactame|organiza|organizame|publica|manda|envia|anuncia)/;
 const topics=/(?:torneo|6\s*(?:vs|v|contra|x)\s*6|enfrentamiento|equipo|lista|anuncio|aviso|comunicado|mensaje|dinamica|evento|juego|purga)/;
 
 export async function privateDirector(ctx:Ctx):Promise<boolean>{
@@ -160,7 +161,12 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   const dest=await kv.get<{jid:string;name:string}>(DEST);
   if(!dest||dest.jid!==pending.group){await ctx.reply("⚠️ Cambió el grupo de destino. Volvé a preparar el anuncio para evitar enviarlo al grupo equivocado.");return true;}
   try{
+   const signupRequested=/\b(?:anot[aá]|anotar|tom[aá]|tomar|inscripci[oó]n|inscripciones|recib[ií]|recibir)\b.{0,25}\b(?:ids?|jugadores|participantes)\b|\b(?:ids?|jugadores)\b.{0,25}\b(?:anot[aá]|anotar|inscripci[oó]n)\b/i.test(normalized(pending.request+" "+raw));
+   const isEvent=/\b(?:dinamica|evento|juego|torreta)\b/i.test(normalized(pending.request));
+   const eventPlan=isEvent&&signupRequested?await openEventSignup(dest.jid,"Dinámica JS"):null;
+   if(eventPlan&&!eventPlan.ok){await ctx.reply("⚠️ "+eventPlan.message+" No publiqué el anuncio para evitar abrir otra lista.");return true;}
    await sendText(dest.jid,pending.text);
+   if(eventPlan?.ok)await sendText(dest.jid,"📋 *INSCRIPCIONES ABIERTAS — DINÁMICA JS*\nMandá solamente tu *ID de Free Fire* en este grupo. Guardian verificará tu nombre y te anotará.\nConsultá *.evento lista*. JS puede cerrar con *.evento cerrar*.");
    if(/6\s*(?:vs|v|x|contra)\s*6/i.test(pending.request)){
     const words=pending.request.toLowerCase().split(/[^a-záéíóúñ]+/);
     const colors=["negro","rojo","blanco","azul"].filter(c=>words.includes(c));
@@ -170,7 +176,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
     }
    }
    await kv.set(DRAFT,null);
-   await ctx.reply("✅ Publicado en *"+dest.name+"*.");
+   await ctx.reply("✅ Publicado en *"+dest.name+"*."+(eventPlan?.ok?" Ya estoy tomando IDs verificados. Consultá *.evento lista*.":""));
   }catch{await ctx.reply("⚠️ No pude publicar el anuncio. Revisá que el bot siga en el grupo y probá otra vez.");}
   return true;
  }
