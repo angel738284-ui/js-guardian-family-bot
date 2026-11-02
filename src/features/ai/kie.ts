@@ -10,6 +10,8 @@ import { buildLiveContext, isLiveInformationQuestion, liveQuestionKind } from ".
 import { wantsQuotedReply, quotedPrompt } from "./quotedContext.ts";
 import { updatePlayerName } from "./playerNames.ts";
 import { groupContext, shouldJoinSocially } from "./groupSocial.ts";
+import { jokeContext } from "./socialExtras.ts";
+import sharp from "sharp";
 
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
@@ -75,6 +77,7 @@ export async function kieGenerate(
   liveFacts = "",
   preferredName = "",
   socialContext = "",
+  images: Array<{mimetype:string;data:string}> = [],
 ): Promise<string> {
   const model = process.env.KIE_MODEL || "gpt-6-luna";
   const instructions = [
@@ -98,7 +101,7 @@ export async function kieGenerate(
       input:[
         {role:"system",content:instructions},
         ...turns.slice(-6).map(t => ({role:t.role,content:t.content.slice(0,800)})),
-        {role:"user",content:question.slice(0,1850)},
+        {role:"user",content:images.length ? [{type:"input_text",text:question.slice(0,1850)},...images.map(i=>({type:"input_image",image_url:"data:"+i.mimetype+";base64,"+i.data}))] : question.slice(0,1850)},
       ],
     }),
     signal: AbortSignal.timeout(50_000),
@@ -159,8 +162,9 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
     const [tone, memories] = await Promise.all([
       personaTone(ctx.chat), userMemories(ctx.chat, user)
     ]);
+    const media=await mediaContext(ctx);
     const reply = await kieGenerate(
-      prompt, ctx.pushName, tone, memories, wantsQuotedReply(ctx.text,quote) ? [] : turns, isJSLeader(ctx), live?.facts ?? "", playerName.name ?? "", groupContext(ctx),
+      media.text ? prompt+"\n"+media.text : prompt, ctx.pushName, tone, memories, wantsQuotedReply(ctx.text,quote) ? [] : turns, isJSLeader(ctx), live?.facts ?? "", playerName.name ?? "", groupContext(ctx)+"\n"+await jokeContext(ctx.chat), media.images,
     );
     const updated:ConversationEntry={at:Date.now(),turns:[
       ...turns,
@@ -179,4 +183,26 @@ export async function answerWithKie(ctx: Ctx): Promise<void> {
   } finally {
     active = false;
   }
+}
+
+async function mediaContext(ctx:Ctx):Promise<{text:string;images:Array<{mimetype:string;data:string}>}>{
+ const result:{text:string;images:Array<{mimetype:string;data:string}>}={text:"",images:[]};
+ const type=ctx.message.quoted?.type==="audio"||ctx.message.quoted?.type==="image"||ctx.message.quoted?.type==="sticker"?ctx.message.quoted.type:ctx.message.type;
+ if(!["audio","image","sticker"].includes(type))return result;
+ try{
+  const media=await ctx.downloadMedia();
+  if(!media||media.bytes.length>8*1024*1024)return result;
+  if(media.type==="image"||media.type==="sticker"){
+   const buffer=await sharp(media.bytes).resize(1024,1024,{fit:"inside",withoutEnlargement:true}).jpeg({quality:75}).toBuffer();
+   result.images.push({mimetype:"image/jpeg",data:buffer.toString("base64")});
+   result.text="Analizá la imagen o sticker adjunto antes de comentar; no inventes detalles invisibles.";
+  }else if(media.type==="audio"&&process.env.GROQ_API_KEY?.trim()){
+   const form=new FormData();
+   form.set("model","whisper-large-v3-turbo");form.set("language","es");
+   form.set("file",new Blob([Uint8Array.from(media.bytes)],{type:media.mimetype||"audio/ogg"}),"audio.ogg");
+   const response=await fetch("https://api.groq.com/openai/v1/audio/transcriptions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY.trim()},body:form,signal:AbortSignal.timeout(25000)});
+   if(response.ok){const data=await response.json() as {text?:string};if(data.text)result.text="Audio transcrito (puede contener errores): "+data.text.slice(0,1800);}
+  }
+ }catch(e){logger.warn("Multimedia de Guardian no disponible: "+String(e));}
+ return result;
 }

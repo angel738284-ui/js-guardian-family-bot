@@ -42,3 +42,12 @@ export async function shouldJoinSocially(ctx:Ctx):Promise<boolean>{
  state.count=0;state.last=now;counters.set(ctx.chat,state);
  return true;
 }
+
+export function recentSummary(chat:string):string{
+ const lines=(recent.get(chat)??[]).filter(x=>Date.now()-x.at<15*60_000);
+ if(!lines.length)return "";
+ const participants=new Set(lines.map(x=>x.sender)).size;
+ return "📝 *Últimos mensajes registrados* ("+lines.length+" mensajes de "+participants+" participantes; ventana máxima de 15 minutos):\n"+
+ lines.slice(-9).map(x=>"• "+x.name+": "+x.text.slice(0,110)).join("\n")+
+ "\n\nResumen extractivo: solo mensajes disponibles, no representa todo lo hablado en el día.";
+}
