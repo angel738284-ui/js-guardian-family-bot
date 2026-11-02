@@ -24,5 +24,5 @@ export function isLeaderIdentityQuestion(input: string): boolean {
 
 export function leaderIdentityReply(): string {
   return "👑 ¿Vos? Sos *JS*, el líder de *JS Family*. " +
-    "Al que le tengo que hacer caso… aunque cada tanto toque cargarlo por cómo juega Free Fire 😏";
+    "Mi creador, mi número uno y el que más respeto en esta comunidad. 👑";
 }
