@@ -152,6 +152,22 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
   }catch(e){await ctx.reply("⚠️ "+(e instanceof Error?e.message:"No pude abrir suplentes."));}
   return true;
  }
+ // Una orden de PUBLICAR tiene prioridad sobre cualquier lista de equipos anterior.
+ // Nunca reinterpretar "mandalo y toma lista" como "reiniciar los 12 titulares".
+ const publishAndSignup=/^(?:mandalo|mand[aá]lo|publicalo|public[aá]lo|envialo|envi[aá]lo|subilo|sub[ií]lo|pasalo|pas[aá]lo)\s+y\s+(?:toma|tom[aá]|tomar|anota|anot[aá]|anotar|recibi|recib[ií]|recibir|abri|abr[ií]|abrir|empeza|empez[aá]|empezar)\s*(?:la\s+)?(?:lista|ids?|inscripciones)[.! ]*$/i;
+ if(publishAndSignup.test(text)){
+  const target=await kv.get<{jid:string;name:string}>(DEST);
+  if(!target){await ctx.reply("Primero elegí el grupo con *.destino poner*.");return true;}
+  const current=await kv.get<Draft>(DRAFT);
+  const quoted=ctx.message.quoted?.text?.trim();
+  if(!current&&quoted&&quoted.length>=40){
+   await kv.set(DRAFT,{text:quoted,group:target.jid,created:Date.now(),request:"publicar dinamica y tomar id",revisions:[]} satisfies Draft);
+   await ctx.reply("📋 Preparé el anuncio citado para *"+target.name+"*. Respondé *confirmo* para publicarlo y abrir una lista nueva de IDs de esta dinámica, o *cancelar*. La lista anterior de equipos quedará intacta.");return true;
+  }
+  if(!current){await ctx.reply("No tengo un anuncio listo. Respondé al mensaje completo con *mandalo y toma lista*.");return true;}
+  // El bloque de confirmación existente publicará el borrador; no reinicia equipos.
+  await ctx.reply("📋 Tengo un borrador listo para *"+target.name+"*. Respondé *publicalo y toma id* para enviarlo y abrir la inscripción de la dinámica. No se borrarán los 12 jugadores de la lista anterior.");return true;
+ }
  // Reiniciar requiere una intención explícita; "tomá estos son los jugadores" NO es reiniciar.
  const signupOrder=/\b(?:lista|inscripciones)\s+(?:nueva|desde cero|de nuevo)\b|\b(?:reinicia|reiniciar|resetea|resetear|borra|borrar)\b.{0,40}\b(?:lista|inscripciones|equipos)\b|\b(?:empeza|empezar|empieza|comenza|comenzar|inicia|iniciar|abre|abrir|crea|crear|arma|armar|toma|tomar)\b.{0,35}\b(?:lista|inscripciones)\b/i.test(text)&&!/\b(?:quiero hacer estos cambios|estos son los jugadores|toma estos|modifica|modificar|actualiza|actualizar)\b/i.test(text);
  if(signupOrder){
