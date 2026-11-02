@@ -30,8 +30,8 @@ export function formatDraft(d:Draft, inGroup=false):string {
     "📦 "+d.pack+" diamantes",
     "",
     "⚠️ *Todavía NO se realizó la recarga.*",
-    "✅ Para comprar: */confirmarcarga*",
-    "❌ Para cancelar: */cancelarcarga*",
+    "✅ Para comprar: respondé *Sí*",
+    "❌ Para cancelar: respondé *No*",
     "⏱️ Confirmación válida durante cinco minutos.",
   ].join("\n");
   return "💎 *RECARGA PREPARADA · EPINBY*\n"+
@@ -42,8 +42,8 @@ export function formatDraft(d:Draft, inGroup=false):string {
     "💰 *Costo proveedor:* "+money(d.amountUsd)+"\n"+
     "🧾 Producto #"+d.productId+"\n\n"+
     "⚠️ *Todavía NO se compró nada.*\n"+
-    "Para gastar tu saldo: */confirmarcarga*\n"+
-    "Para anular: */cancelarcarga*\n"+
+    "Para gastar tu saldo: respondé *Sí*\n"+
+    "Para anular: respondé *No*\n"+
     "La autorización vence en cinco minutos.";
 }
 

@@ -28,6 +28,7 @@ import { purga } from "../features/purga.ts";
 import { clanInfo } from "../features/clanInfo.ts";
 import { groupRulesInfo } from "../features/groupRulesInfo.ts";
 import { recordSocialContext, socialCommand } from "../features/ai/groupSocial.ts";
+import { handleEpinYesNo } from "../features/epinYesNo.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
 import { kieConfigured, shouldAnswerWithKie, answerWithKie } from "../features/ai/kie.ts";
@@ -90,6 +91,7 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
 
+    if (await handleEpinYesNo(ctx)) return;
     if (await socialCommand(ctx)) return;
     if (await groupRulesInfo(ctx)) return;
     if (await clanInfo(ctx)) return;
