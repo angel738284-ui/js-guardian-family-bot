@@ -167,7 +167,7 @@ export async function privateDirector(ctx:Ctx):Promise<boolean>{
  // Una orden de PUBLICAR tiene prioridad sobre cualquier lista de equipos anterior.
  // Nunca reinterpretar "mandalo y toma lista" como "reiniciar los 12 titulares".
  const publishAndSignup=/^(?:mandalo|mand[aá]lo|publicalo|public[aá]lo|envialo|envi[aá]lo|subilo|sub[ií]lo|pasalo|pas[aá]lo)\s+y\s+(?:toma|tom[aá]|tomar|anota|anot[aá]|anotar|recibi|recib[ií]|recibir|abri|abr[ií]|abrir|empeza|empez[aá]|empezar)\s*(?:la\s+)?(?:lista|ids?|inscripciones)[.! ]*$/i;
- if(publishAndSignup.test(text)){
+ if(publishAndSignup.test(text)&&!(await kv.get<Draft>(DRAFT))){
   await kv.delete(RESET); // Descarta cualquier confirmación vieja de reinicio de equipos.
   const target=await kv.get<{jid:string;name:string}>(DEST);
   if(!target){await ctx.reply("Primero elegí el grupo con *.destino poner*.");return true;}
