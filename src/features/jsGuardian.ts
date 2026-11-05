@@ -112,6 +112,9 @@ export async function guardianWarn(group: string, actor: string, target: string,
 
 export async function runGuardianGuards(ctx: Ctx): Promise<boolean> {
   if (!ctx.isGroup || ctx.fromMe || ctx.chat === getLogGroupJid()) return false;
+  // Sin detector de stickers: evitamos descargas y llamadas visuales costosas.
+  // Permanecen activas las protecciones de enlaces y la lista negra.
+  if (String(ctx.message.type) === "sticker") return false;
   try {
     const [config, group] = await Promise.all([getGuardianConfig(ctx.chat), getGroup(ctx.chat)]);
     if (!isBotAdmin(group)) return false;
