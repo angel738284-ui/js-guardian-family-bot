@@ -15,6 +15,7 @@ const busy=new Set<string>();
 const owner=(ctx:Ctx)=>isOwner(ctx)||isJSLeader(ctx);
 const dateAR=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"America/Argentina/Buenos_Aires",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const announcement=(time:string)=>"🔥 *LA PURGA DE JS FAMILY* 🔥\n\n🕗 *Hoy a las "+time+" hs (Argentina)*\n🎮 *Free Fire — La Purga*\n\n📋 *INSCRIPCIONES*\nMandá *solamente tu ID de Free Fire* en este grupo. JS Guardian verificará tu nombre y te anotará automáticamente en la lista.\n\n⚔️ *REGLAS*\n• Nadie puede matar: *solo el líder JS puede eliminar*.\n• Prohibido hacer daño de cualquier clase.\n• Prohibido usar emotes: quien use uno queda eliminado.\n• No se permite caer en lugares altos, inaccesibles o esconderse en zonas imposibles de alcanzar.\n• Prohibido usar vehículos.\n• Respeten las indicaciones del líder JS.\n\n🏆 *GANADOR:* la última persona que permanezca viva en la sala.\n\n📌 Las inscripciones quedan abiertas hasta que JS cierre la lista.";
+const rules=()=>announcement("00:00").split("⚔️ *REGLAS*\n")[1]!.split("\n\n📌")[0]!.replace("\n\n🏆", "\n\n🏆");
 const draft=(p:Preview)=>{let a=announcement(p.time);if(p.prize)a=a.replace("⚔️ *REGLAS*","🎁 *PREMIO: "+p.prize+"*\n\n⚔️ *REGLAS*");if(p.hiddenRules?.length)a=a.split("\n").filter(line=>!p.hiddenRules!.some(k=>line.toLowerCase().includes(k))).join("\n");if(p.extraRules?.length)a=a.replace("🏆 *GANADOR:*",p.extraRules.map(x=>"• "+x).join("\n")+"\n\n🏆 *GANADOR:*");return a;};
 const showDraft=(p:Preview,name:string)=>"📋 *VISTA PREVIA — NO PUBLICADA*\n📍 Destino: *"+name+"*\n\n"+draft(p)+"\n\n────────────\nPedime cambios o escribí *.purga publicar* para enviar. *.purga cancelar* descarta.";
 const listing=(s:Purga)=>"🔥 *PARTICIPANTES DE LA PURGA*\n🕗 "+s.time+" hs (Argentina)\n"+(s.active?"🟢 Inscripciones abiertas":"🔒 Inscripciones cerradas")+"\n👥 *Total: "+s.players.length+"*\n\n"+(s.players.length?s.players.map((p,i)=>(i+1)+". *"+p.name.replace(/[\r\n*]/g," ").slice(0,65)+"* — "+p.id).join("\n"):"Todavía no hay anotados.");
@@ -68,6 +69,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
     }catch{await ctx.reply("⚠️ No pude completar la publicación. Revisá el grupo antes de reintentar para evitar anuncios duplicados.");}
     return true;
    }
+   if(arg==="reglas"){await ctx.reply("🔥 *REGLAS DE LA PURGA DE JS FAMILY*\n\n"+rules());return true;}
    if(arg==="lista"||arg==="estado"){
     const dest=await kv.get<{jid:string;name:string}>(destKey);
     const s=dest?await kv.get<Purga>(key(dest.jid)):null;
@@ -82,7 +84,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
     await sendText(dest.jid,"🔒 *INSCRIPCIONES DE LA PURGA CERRADAS*\n\n"+listing(s));
     return true;
    }
-   await ctx.reply("🔥 *LA PURGA*\n*.purga 20:30* — Preparar anuncio\n*.purga publicar* — Publicar y abrir lista\n*.purga lista* — Ver anotados\n*.purga cerrar* — Cerrar lista\n*.purga cancelar* — Descartar vista previa");
+   await ctx.reply("🔥 *LA PURGA*\n*.purga 20:30* — Preparar anuncio\n*.purga publicar* — Publicar y abrir lista\n*.purga lista* — Ver anotados\n*.purga reglas* — Ver reglas\n*.purga cerrar* — Cerrar lista\n*.purga cancelar* — Descartar vista previa");
    return true;
   }
   // Ediciones conversacionales del borrador, nunca de un anuncio publicado.
@@ -125,6 +127,7 @@ export async function purga(ctx:Ctx):Promise<boolean>{
  if(!ctx.isGroup)return false;
  if(cmd){
   const arg=(cmd[1]??"").trim().toLowerCase();
+  if(arg==="reglas"){await ctx.reply("🔥 *REGLAS DE LA PURGA DE JS FAMILY*\n\n"+rules());return true;}
   if(arg==="lista"||arg==="estado"){
    const s=await kv.get<Purga>(key(ctx.chat));
    await ctx.reply(s?listing(s):"📋 No hay una Purga configurada en este grupo.");return true;
