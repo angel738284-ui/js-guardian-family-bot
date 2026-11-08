@@ -1,4 +1,5 @@
 import type { Ctx } from "../core/context.ts";
+import { formatPurgaRules } from "./purgaRules.ts";
 
 const RULES = [
   "📜 *REGLAS DEL GRUPO FREE FIRE — EL SÓTANO JS*",
@@ -29,7 +30,12 @@ const RULES = [
 ].join("\n");
 
 export async function groupRulesInfo(ctx: Ctx): Promise<boolean> {
-  if (!/^[./]reglas\s*$/i.test(ctx.text.trim())) return false;
+  const input=ctx.text.trim();
+  if (/^[./]reglas\s+purga\s*$/i.test(input)) {
+    await ctx.reply(formatPurgaRules());
+    return true;
+  }
+  if (!/^[./]reglas\s*$/i.test(input)) return false;
   await ctx.reply(RULES);
   return true;
 }
