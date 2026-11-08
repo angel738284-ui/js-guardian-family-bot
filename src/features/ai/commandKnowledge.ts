@@ -24,3 +24,39 @@ export function commandKnowledge(): string {
   "COMANDOS REGISTRADOS EN EL BOT:",...registered,
  ].join("\n").slice(0,22000);
 }
+
+/** Small, topic-aware command reference for Grok. The full manual remains available
+ * to Kie when it is used as fallback. Never send every installed command for a hello.
+ */
+const normalizeSearch = (value:string) =>
+  value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const COMMAND_QUESTION = /\b(?:comandos?|cmds|funciones?|configur\w*|activar|desactivar|administr\w*|moder\w*|banear|banead\w*|ban|kick|expuls\w*|stickers?|spam|antispam|links?|purga|torneos?|inscrip\w*|anotar|listas?|recargas?|diamantes?|precios?|promos?|verific\w*|cerebro|crea\w*|publica\w*|abrir|cerrar|borr\w*|elimin\w*|sala|consumo|creditos)\b/i;
+const SEARCH_STOP = new Set(["como","para","que","una","con","esto","tiene","quiero","hace","hacer","puedo","activar","crear","estas","donde","cuales","cual","decime","tengo","sobre","usar","comando","comandos","funcion","funciones","bot","guardian","js"]);
+export function commandKnowledgeForQuestion(question:string, turns:Array<{role:"user"|"assistant";content:string}>=[]):string{
+  const earlier=turns.filter(t=>t.role==="user").slice(-2).map(t=>t.content.slice(0,150)).join(" ");
+  const contextual=/\b(?:ese|esto|eso|anterior|lo de antes|como lo|cómo lo|como se|cómo se)\b/i.test(normalizeSearch(question)) ? earlier : "";
+  const query=normalizeSearch(question+" "+contextual);
+  if(!COMMAND_QUESTION.test(query))return "";
+  const words=[...new Set((query.match(/[a-z0-9]{3,}/g)??[]).filter(w=>w.length>=4&&!SEARCH_STOP.has(w)))];
+  const score=(text:string,names=""):number=>{
+    const doc=normalizeSearch(text);
+    const title=normalizeSearch(names);
+    return words.reduce((n,w)=>n+(title.includes(w)?8:doc.includes(w)?2:0),0);
+  };
+  const all=allCommands().filter(c=>!c.hidden).map(c=>{
+    const names=[c.name,...(c.aliases??[])].join(", ");
+    const access=c.permission==="owner"?"solo dueño":c.adminOnly?"solo administradores":c.permission==="sudo"?"privilegiados":"según permisos";
+    const doc="."+c.name+(c.aliases?.length?" (alias: "+c.aliases.slice(0,3).join(", ")+")":"")+" — "+c.description+
+      (c.usage?" | Uso: "+c.usage:"")+" | Acceso: "+access;
+    return {doc,rank:score(doc,names)};
+  }).filter(x=>x.rank>0).sort((a,b)=>b.rank-a.rank).slice(0,16);
+  const special=CUSTOM.map(doc=>({doc,rank:score(doc,doc.split(" — ")[0])}))
+    .filter(x=>x.rank>0).sort((a,b)=>b.rank-a.rank).slice(0,5);
+  const isOverview=/\b(?:comandos|cmds|funciones|menu)\b/.test(query);
+  const items=[...special,...all].map(x=>x.doc).join("\n").slice(0,3400);
+  return [
+    "CONSULTA DE COMANDOS. Solo existen comandos registrados; nunca inventes ni afirmes haberlos ejecutado. Prefijo preferido: punto (.).",
+    isOverview?"Para el listado completo indicá que use .cmds. Mostrá solo ejemplos relevantes, no inventes.":"",
+    items || "Para consultar todas las funciones reales del bot, indicá .cmds.",
+  ].filter(Boolean).join("\n");
+}

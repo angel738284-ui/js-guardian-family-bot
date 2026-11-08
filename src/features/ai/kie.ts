@@ -5,7 +5,7 @@ import { kv } from "../../db/kv.ts";
 import { logger } from "../../lib/logger.ts";
 import { PERSONALITY, personaStyle, personaTone, userMemories, type PersonaTone } from "./persona.ts";
 import { isJSLeader } from "./leaderIdentity.ts";
-import { commandKnowledge } from "./commandKnowledge.ts";
+import { commandKnowledge, commandKnowledgeForQuestion } from "./commandKnowledge.ts";
 import { buildLiveContext, isLiveInformationQuestion, liveQuestionKind } from "./liveContext.ts";
 import { wantsQuotedReply, quotedPrompt } from "./quotedContext.ts";
 import { updatePlayerName } from "./playerNames.ts";
@@ -15,6 +15,7 @@ import sharp from "sharp";
 import { naturalMode, naturalInstructions } from "./natural.ts";
 import { selectReasoning, type ReasoningEffort } from "./intelligent.ts";
 import { grokGenerate, grokPrimary } from "./grok.ts";
+import { buildEfficientGrokPrompt, efficientGrokTurns } from "./efficientGrokPrompt.ts";
 
 const ENDPOINT = "https://api.kie.ai/codex/v1/responses";
 const userTimes = new Map<string, number>();
@@ -89,7 +90,8 @@ export async function kieGenerate(
   const model = privateLeaderMode ? (process.env.KIE_PRIVATE_LEADER_MODEL || "gpt-6.1-sol") : (process.env.KIE_MODEL || "gpt-6-luna");
   const effort=privateLeaderMode ? "high" : (requestedEffort??selectReasoning(question,verifiedLeader));
   const historyLimit=verifiedLeader?12:8;
-  const instructions = [
+  // Build the large legacy prompt only if the Kie provider is actually used.
+  const kieInstructions = () => [
     PERSONALITY,
     commandKnowledge(),
     socialContext,
@@ -104,7 +106,12 @@ export async function kieGenerate(
   const recentTurns = turns.slice(-historyLimit).map(t => ({role:t.role,content:t.content.slice(0,800)}));
   if (grokPrimary()) {
     try {
-      return await grokGenerate(instructions, question.slice(0,1850), recentTurns, images);
+      const compact = buildEfficientGrokPrompt({
+        question, toneStyle:personaStyle(tone), commandContext:commandKnowledgeForQuestion(question,turns),
+        verifiedLeader, username, preferredName, memories,
+        liveFacts, socialContext, naturalStyle, turns,
+      });
+      return await grokGenerate(compact, question.slice(0,1850), efficientGrokTurns(turns, question, verifiedLeader), images);
     } catch (error) {
       logger.warn("Grok IA no disponible, Kie de respaldo: " + (error instanceof Error ? error.message : "error desconocido"));
       if (!process.env.KIE_API_KEY?.trim()) throw error;
@@ -118,7 +125,7 @@ export async function kieGenerate(
     body: JSON.stringify({
       model, stream:false, reasoning:{effort}, max_output_tokens:effort==="high"?1100:effort==="medium"?700:400,
       input:[
-        {role:"system",content:instructions},
+        {role:"system",content:kieInstructions()},
         ...turns.slice(-historyLimit).map(t => ({role:t.role,content:t.content.slice(0,800)})),
         {role:"user",content:images.length ? [{type:"input_text",text:question.slice(0,1850)},...images.map(i=>({type:"input_image",image_url:"data:"+i.mimetype+";base64,"+i.data}))] : question.slice(0,1850)},
       ],
