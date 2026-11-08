@@ -35,6 +35,7 @@ import { recordSocialContext, socialCommand } from "../features/ai/groupSocial.t
 import { handleEpinYesNo } from "../features/epinYesNo.ts";
 import { socialExtras } from "../features/ai/socialExtras.ts";
 import { handleSocialMemoryCommand, handleExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCommand.ts";
+import { handleApkCommand } from "../features/jsApk.ts";
 import { parseExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCore.ts";
 import { naturalCommand } from "../features/ai/natural.ts";
 import { checkPolicies } from "../features/policy.ts";
@@ -98,6 +99,14 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS){if(ctx.isGroup)brainStage(ctx.chat,"mensaje_antiguo");return;}
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
+
+    // Descarga pública de la app de jugadores: disponible para miembros sin permisos de dueño.
+    if (command?.name === "apk") {
+      if (!ctx.fromMe && await isBanned(ctx)) return;
+      if (await isMaintenance()) {await ctx.reply("🛠️ El bot está en mantenimiento.");return;}
+      await handleApkCommand(ctx);
+      return;
+    }
 
     // V3: los miembros pueden administrar SOLO su propia memoria voluntaria,
     // aun cuando los comandos administrativos estén reservados al dueño.
