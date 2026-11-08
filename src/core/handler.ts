@@ -34,6 +34,8 @@ import { groupRulesInfo } from "../features/groupRulesInfo.ts";
 import { recordSocialContext, socialCommand } from "../features/ai/groupSocial.ts";
 import { handleEpinYesNo } from "../features/epinYesNo.ts";
 import { socialExtras } from "../features/ai/socialExtras.ts";
+import { handleSocialMemoryCommand, handleExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCommand.ts";
+import { parseExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCore.ts";
 import { naturalCommand } from "../features/ai/natural.ts";
 import { checkPolicies } from "../features/policy.ts";
 import { answerWithAi, shouldAnswer } from "../features/ai/index.ts";
@@ -96,6 +98,23 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS){if(ctx.isGroup)brainStage(ctx.chat,"mensaje_antiguo");return;}
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
+
+    // V3: los miembros pueden administrar SOLO su propia memoria voluntaria,
+    // aun cuando los comandos administrativos estén reservados al dueño.
+    if (command?.name === "memoria") {
+      const eraseOrInspect = /^(?:off|desactivar|borrar|eliminar|ver|lista|recuerdos|estado)\b/i.test(ctx.args.trim());
+      // Incluso un participante sancionado debe poder borrar o consultar sus propios datos.
+      if (!eraseOrInspect && !ctx.fromMe && await isBanned(ctx)) return;
+      if (!eraseOrInspect && await isMaintenance()) { await ctx.reply("🛠️ El bot está en mantenimiento."); return; }
+      await handleSocialMemoryCommand(ctx);
+      return;
+    }
+    // También reconoce pedidos voluntarios que mencionen al bot explícitamente.
+    if (!command && parseExplicitSocialMemoryRequest(ctx.text)) {
+      if (!ctx.fromMe && await isBanned(ctx)) return;
+      if (await isMaintenance()) return;
+      if (await handleExplicitSocialMemoryRequest(ctx)) return;
+    }
 
     if (await handleEpinYesNo(ctx)) return;
     if (await naturalCommand(ctx)) return;

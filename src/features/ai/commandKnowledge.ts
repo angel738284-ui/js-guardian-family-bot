@@ -11,6 +11,7 @@ const CUSTOM = [
   "/guardian stickers on|off — Protección contra spam de stickers; /guardian links on|off — protección contra enlaces.",
   "/cerebro on|off, /cerebro ia on|off, /cerebro modo firme|suave, /cerebro borrar on|off, /cerebro diagnostico — Moderación y diagnóstico.",
   ".habla — Activa las respuestas de Guardian; .nohables — Las desactiva.",
+  ".memoria on — Activa la memoria social V3 del participante en este chat; .memoria guardar TEXTO, .memoria apodo NOMBRE, .memoria ver, .memoria borrar N, .memoria off. Se guarda solo lo que el usuario pide expresamente.",
 ];
 export function commandKnowledge(): string {
  const registered=allCommands().filter(c=>!c.hidden).map(c=>{
@@ -30,7 +31,7 @@ export function commandKnowledge(): string {
  */
 const normalizeSearch = (value:string) =>
   value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const COMMAND_QUESTION = /\b(?:comandos?|cmds|funciones?|configur\w*|activar|desactivar|administr\w*|moder\w*|banear|banead\w*|ban|kick|expuls\w*|stickers?|spam|antispam|links?|purga|torneos?|inscrip\w*|anotar|listas?|recargas?|diamantes?|precios?|promos?|verific\w*|cerebro|crea\w*|publica\w*|abrir|cerrar|borr\w*|elimin\w*|sala|consumo|creditos)\b/i;
+const COMMAND_QUESTION = /\b(?:comandos?|cmds|funciones?|configur\w*|activar|desactivar|administr\w*|moder\w*|banear|banead\w*|ban|kick|expuls\w*|stickers?|spam|antispam|links?|purga|torneos?|inscrip\w*|anotar|listas?|recargas?|diamantes?|precios?|promos?|verific\w*|cerebro|crea\w*|publica\w*|abrir|cerrar|borr\w*|elimin\w*|sala|consumo|creditos|memoria|recuerdos?|recordame|apodo|acordar)\b/i;
 const SEARCH_STOP = new Set(["como","para","que","una","con","esto","tiene","quiero","hace","hacer","puedo","activar","crear","estas","donde","cuales","cual","decime","tengo","sobre","usar","comando","comandos","funcion","funciones","bot","guardian","js"]);
 export function commandKnowledgeForQuestion(question:string, turns:Array<{role:"user"|"assistant";content:string}>=[]):string{
   const earlier=turns.filter(t=>t.role==="user").slice(-2).map(t=>t.content.slice(0,150)).join(" ");
