@@ -1,4 +1,4 @@
-import { loadPublicTournaments, formatPublicTournaments } from "../jsTorneosPublic.ts";
+import { loadPublicTournaments, formatPublicTournaments, tournamentRegistrationUrl } from "../jsTorneosPublic.ts";
 import { formatJsPriceLists } from "../rdPromos.ts";
 
 type Turn = { role:"user"|"assistant";content:string };
@@ -71,7 +71,7 @@ export async function buildLiveContext(question:string,history:Turn[]=[]):Promis
     cupos:t.registered,maximo:t.max_teams,
     completo:t.registered!==null&&t.registered>=t.max_teams,
     premio:t.prize_kind&&t.prize_quantity?`${t.prize_quantity} ${String(t.prize_kind).slice(0,25)}`:null,
-    enlace:"https://angel738284-ui.github.io/js-torneos/inscripcion.html?codigo="+t.code,
+    enlace:tournamentRegistrationUrl(t.code),
   }));
   const todayList=list.filter(t=>t.starts_at && argentineDay(new Date(t.starts_at))===today);
   const wantsToday=/\b(hoy|esta noche|ahora)\b/.test(normalize(question));

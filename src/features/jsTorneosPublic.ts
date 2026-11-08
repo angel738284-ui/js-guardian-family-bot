@@ -1,6 +1,8 @@
 /** Solo datos públicos de inscripciones. No necesita llaves de Epinby ni service_role. */
 const LIST_URL="https://chfshxlykvmovwryjnxi.supabase.co/functions/v1/js-torneos-public-list";
-const INSCRIPTION_URL="https://angel738284-ui.github.io/js-torneos/inscripcion.html?codigo=";
+const INSCRIPTION_URL="https://jstorneos.com/inscripcion.html?codigo=";
+/** Un único enlace canónico para todos los mensajes de torneos. */
+export const tournamentRegistrationUrl = (code:string):string => INSCRIPTION_URL+encodeURIComponent(code);
 export interface PublicTournament {
   code:string;name:string;mode:string;team_size:number;max_teams:number;
   registered:number|null;starts_at:string|null;br_format:string|null;
@@ -48,7 +50,7 @@ export function formatPublicTournaments(items:PublicTournament[]):string {
       "👥 "+count+(full?" · 🔴 COMPLETO":" · 🟢 Inscripciones abiertas"),
       t.prize_kind && t.prize_quantity
         ?"🎁 Premio: "+t.prize_quantity+" "+safe(t.prize_kind,25):"",
-      "📝 Inscripción: "+INSCRIPTION_URL+encodeURIComponent(t.code),
+      "📝 Inscripción: "+tournamentRegistrationUrl(t.code),
       "",
     );
   }
