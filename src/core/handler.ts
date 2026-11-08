@@ -36,6 +36,7 @@ import { handleEpinYesNo } from "../features/epinYesNo.ts";
 import { socialExtras } from "../features/ai/socialExtras.ts";
 import { handleSocialMemoryCommand, handleExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCommand.ts";
 import { handleApkCommand } from "../features/jsApk.ts";
+import { handleGroupLink } from "../features/jsGroupLink.ts";
 import { parseExplicitSocialMemoryRequest } from "../features/ai/socialMemoryCore.ts";
 import { naturalCommand } from "../features/ai/natural.ts";
 import { checkPolicies } from "../features/policy.ts";
@@ -99,6 +100,13 @@ export async function handleMessage(client: WaClient, event: WaIncomingMessageEv
     if (ageSeconds > MAX_COMMAND_AGE_SECONDS){if(ctx.isGroup)brainStage(ctx.chat,"mensaje_antiguo");return;}
     // Capa opcional de moderación activa para todo el grupo, antes del filtro solo-JS.
     if (await runBrainGuard(ctx)) return;
+
+    // Enlace del grupo: lo publica JS o un administrador, listo para compartir.
+    if (command?.name === "link") {
+      if (await isMaintenance()) {await ctx.reply("🛠️ El bot está en mantenimiento.");return;}
+      await handleGroupLink(ctx);
+      return;
+    }
 
     // Descarga pública de la app de jugadores: disponible para miembros sin permisos de dueño.
     if (command?.name === "apk") {
