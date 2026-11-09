@@ -15,6 +15,7 @@ const special=[
  "🔒 *GRUPO*",
  "• *.off* — Cerrar el grupo",
  "• *.on* — Abrir el grupo",
+ "• *.f* — Fijar por 7 días el mensaje al que respondés (JS/administradores)",
  "• *.permiso agregar NÚMERO grupo* — Delegar apertura/cierre",
  "• *.permiso quitar NÚMERO grupo* — Revocar permiso",
  "• *.permiso lista* — Listar autorizados",

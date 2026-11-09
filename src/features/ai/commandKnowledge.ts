@@ -13,6 +13,7 @@ const CUSTOM = [
   ".habla — Activa las respuestas de Guardian; .nohables — Las desactiva.",
   ".apk — Envía la app oficial JS Torneos Jugadores como archivo APK de WhatsApp (no la de administradores).",
   ".link — JS y los administradores publican el enlace actual de invitación del grupo para compartirlo.",
+  ".f — JS o administradores pueden fijar por 7 días un mensaje del grupo respondiéndolo con .f. El bot debe ser administrador.",
   ".memoria on — Activa la memoria social V3 del participante en este chat; .memoria guardar TEXTO, .memoria apodo NOMBRE, .memoria ver, .memoria borrar N, .memoria off. Se guarda solo lo que el usuario pide expresamente.",
 ];
 export function commandKnowledge(): string {
